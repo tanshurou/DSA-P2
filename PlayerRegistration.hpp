@@ -10,6 +10,8 @@ struct Player {
     int matchesPlayed;
     int points;
     char grouping[10];
+    bool isEarlyBird = false;
+    bool isWildcard = false;
 };
 
 struct QueueNode {
