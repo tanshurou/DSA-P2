@@ -706,46 +706,102 @@ void assignPlayersToGroups()
 
 void generateRoundRobinMatches()
 {
+  // Load existing matches so we don't overwrite
+  loadMatchesFromFile("data/matches.csv");
   groupMatchQueue.init(); // Reset the queue
 
-  // Iterate through each group
+  // Step 1: Determine latest match ID number
+  int matchIDCounter = 1;
+  if (matchCount > 0)
+  {
+    // Get the number part of the last match ID
+    char lastID[10];
+    strcpy(lastID, matches[matchCount - 1].matchID);
+    if (lastID[0] == 'M')
+    {
+      matchIDCounter = atoi(lastID + 1) + 1;
+    }
+    else if (lastID[0] == 'G') // Handle G1M01 etc., optional
+    {
+      matchIDCounter = matchCount + 1;
+    }
+  }
+
+  // Step 2: Find latest start time from qualifiers
+  int latestQualifierTime = 0;
+  for (int i = 0; i < matchCount; i++)
+  {
+    if (matches[i].stage == QUALIFIERS && matches[i].startTime > latestQualifierTime)
+    {
+      latestQualifierTime = matches[i].startTime;
+    }
+  }
+
+  // Step 3: Wrap time properly
+  int hour = latestQualifierTime / 100;
+  int minute = latestQualifierTime % 100 + 30;
+  if (minute >= 60)
+  {
+    hour += 1;
+    minute -= 60;
+  }
+  int baseStartTime = hour * 100 + minute;
+
+  // Step 4: Get date for group matches
+  int date = getDate();
+
+  // Step 5: Generate round-robin matches for each group
   for (int g = 0; g < MAX_GROUPS; g++)
   {
-    int size = groupCounts[g]; // Get the size of the current group
-    int matchIdx = 0;          // Start match indexing from 0 for each group
+    int size = 0;
+    int groupPlayers[GROUP_SIZE];
 
-    // Generate matches for all player pairs in this group
+    for (int i = 0; i < playerCount; i++)
+    {
+      if (players[i].group == g + 1)
+      {
+        groupPlayers[size++] = i;
+      }
+    }
+
+    groupCounts[g] = size;
+    int matchNumInGroup = 0;
+
     for (int i = 0; i < size - 1; i++)
     {
       for (int j = i + 1; j < size; j++)
       {
         Match m;
-        m.matchIndex = matchCount;                           // Match index as current matchCount
-        sprintf(m.matchID, "G%dM%02d", g + 1, matchIdx + 1); // Create match ID like G1M01, G1M02, ...
-        m.stage = GROUP_STAGE;                               // It's a group stage match
-        m.player1Index = groups[g][i];                       // Player 1 from the group
-        m.player2Index = groups[g][j];                       // Player 2 from the group
-        m.winnerIndex = -1;                                  // Winner is undecided
-        strcpy(m.status, "Scheduled");                       // Match status as scheduled
-        m.groupID = g;                                       // Store the group ID
-        m.startTime = 0;                                     // Optional: Can set start time if needed
-        m.isPlayed = false;                                  // Mark match as not played
+        m.matchIndex = matchCount;
+        sprintf(m.matchID, "M%03d", matchIDCounter++);
+        m.stage = GROUP_STAGE;
+        m.player1Index = groupPlayers[i];
+        m.player2Index = groupPlayers[j];
+        m.winnerIndex = -1;
+        strcpy(m.status, "Scheduled");
+        m.groupID = g;
+        m.isPlayed = false;
+        m.durationInSeconds = 0;
+        m.date = date;
 
-        // Add match to the global matches array
-        matches[matchCount] = m;
-        // Enqueue the match for scheduling
+        int h = baseStartTime / 100;
+        int m_start = baseStartTime % 100 + matchNumInGroup * 30;
+        while (m_start >= 60)
+        {
+          h++;
+          m_start -= 60;
+        }
+        m.startTime = h * 100 + m_start;
+
+        matches[matchCount++] = m;
         groupMatchQueue.enqueue(m);
-
-        matchCount++; // Increment match count
-        matchIdx++;   // Increment match index for next match
+        matchNumInGroup++;
       }
     }
   }
 
-  // Save the matches to the file after generating all matches
   saveMatchesToFile("data/matches.csv");
-
-  cout << "Round-robin group stage matches generated and saved.\n";
+  cout << "Round-robin group stage matches generated and appended.\n";
 }
 
 bool allMatchesPlayedInStage(TournamentStage stage)
@@ -770,8 +826,9 @@ bool allMatchesPlayedInStage(TournamentStage stage)
 
 void printMatches(TournamentStage stage)
 {
-  // Print the header with the updated column names
+  // Print the header
   cout << left << setw(12) << "Match ID"
+       << setw(10) << "Group"
        << setw(12) << "Date"
        << setw(12) << "Start Time"
        << setw(12) << "Status"
@@ -779,51 +836,108 @@ void printMatches(TournamentStage stage)
        << setw(20) << "Player 2"
        << setw(17) << "Duration (min)"
        << "Winner\n";
-  cout << "-------------------------------------------------------------------------------------------------------------------\n";
+  cout << "---------------------------------------------------------------------------------------------------------------------------\n";
 
-  for (int i = 0; i < matchCount; i++)
+  if (stage == GROUP_STAGE)
   {
-    if (matches[i].stage == stage)
+    // Print matches group by group
+    for (int g = 0; g < MAX_GROUPS; g++)
     {
-      // Calculate duration in minutes with seconds as decimal
-      float oriTime = matches[i].durationInSeconds / 60;
-      float min = floor(matches[i].durationInSeconds / 60);
-      float finalTime = (oriTime - min) * 60 / 100 + min;
-      float durationInMinutes = (matches[i].isPlayed) ? finalTime : -1;
+      bool groupHasMatches = false;
 
-      // Format the date (YYYY-MM-DD)
-      int year = matches[i].date / 10000;
-      int month = (matches[i].date / 100) % 100;
-      int day = matches[i].date % 100;
-
-      // Print the match details
-      cout << left << setw(12) << matches[i].matchID
-           << setw(12) << to_string(year) + "-" + (month < 10 ? "0" : "") + to_string(month) + "-" + (day < 10 ? "0" : "") + to_string(day)
-           << setw(12) << matches[i].startTime // Print the start time
-           << setw(12) << matches[i].status
-           << setw(20) << players[matches[i].player1Index].name
-           << setw(20) << players[matches[i].player2Index].name
-           << setw(15); // for duration
-
-      // Print duration (or - if match is not completed)
-      if (durationInMinutes >= 0)
-        cout << setw(17) << finalTime; // Print the duration in minutes
-      else
-        cout << setw(17) << "-"; // Print "-" for incomplete matches
-
-      // Print winner (or - if match is not completed)
-      if (matches[i].isPlayed)
+      // First check if this group has any match
+      for (int i = 0; i < matchCount; i++)
       {
-        cout << players[matches[i].winnerIndex].name;
-      }
-      else
-      {
-        cout << "-"; // Print "-" if match is not completed
+        if (matches[i].stage == GROUP_STAGE && matches[i].groupID == g)
+        {
+          groupHasMatches = true;
+          break;
+        }
       }
 
-      cout << "\n";
+      if (!groupHasMatches)
+        continue;
+
+      cout << "\nGroup " << (g + 1) << ":\n";
+
+      for (int i = 0; i < matchCount; i++)
+      {
+        if (matches[i].stage == GROUP_STAGE && matches[i].groupID == g)
+        {
+          // Format duration
+          float oriTime = matches[i].durationInSeconds / 60;
+          float min = floor(oriTime);
+          float finalTime = (oriTime - min) * 60 / 100 + min;
+          float durationInMinutes = (matches[i].isPlayed) ? finalTime : -1;
+
+          // Format date
+          int year = matches[i].date / 10000;
+          int month = (matches[i].date / 100) % 100;
+          int day = matches[i].date % 100;
+
+          // Print match line
+          cout << left << setw(12) << matches[i].matchID
+               << setw(10) << (matches[i].groupID + 1)
+               << setw(12) << to_string(year) + "-" + (month < 10 ? "0" : "") + to_string(month) + "-" + (day < 10 ? "0" : "") + to_string(day)
+               << setw(12) << matches[i].startTime
+               << setw(12) << matches[i].status
+               << setw(20) << players[matches[i].player1Index].name
+               << setw(20) << players[matches[i].player2Index].name;
+
+          if (durationInMinutes >= 0)
+            cout << setw(17) << finalTime;
+          else
+            cout << setw(17) << "-";
+
+          if (matches[i].isPlayed)
+            cout << players[matches[i].winnerIndex].name;
+          else
+            cout << "-";
+
+          cout << "\n";
+        }
+      }
     }
   }
+  else
+  {
+    // Non-group-stage matches (Qualifiers, Knockout)
+    for (int i = 0; i < matchCount; i++)
+    {
+      if (matches[i].stage == stage)
+      {
+        float oriTime = matches[i].durationInSeconds / 60;
+        float min = floor(oriTime);
+        float finalTime = (oriTime - min) * 60 / 100 + min;
+        float durationInMinutes = (matches[i].isPlayed) ? finalTime : -1;
+
+        int year = matches[i].date / 10000;
+        int month = (matches[i].date / 100) % 100;
+        int day = matches[i].date % 100;
+
+        cout << left << setw(12) << matches[i].matchID
+             << setw(10) << "-"
+             << setw(12) << to_string(year) + "-" + (month < 10 ? "0" : "") + to_string(month) + "-" + (day < 10 ? "0" : "") + to_string(day)
+             << setw(12) << matches[i].startTime
+             << setw(12) << matches[i].status
+             << setw(20) << players[matches[i].player1Index].name
+             << setw(20) << players[matches[i].player2Index].name;
+
+        if (durationInMinutes >= 0)
+          cout << setw(17) << finalTime;
+        else
+          cout << setw(17) << "-";
+
+        if (matches[i].isPlayed)
+          cout << players[matches[i].winnerIndex].name;
+        else
+          cout << "-";
+
+        cout << "\n";
+      }
+    }
+  }
+
   cout << "\n";
 }
 
@@ -923,7 +1037,7 @@ bool getWinnerDone(int matchIndex)
     }
     else if (winnerChoice == 2)
     {
-      setMatchResult(matches[matchIndex].matchIndex, matches[matchIndex].player1Index);
+      setMatchResult(matches[matchIndex].matchIndex, matches[matchIndex].player2Index);
       invalidInput = false;
     }
     else
