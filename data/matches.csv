@@ -1,8 +1,8 @@
-G1M01,Group,P002,P009,-1,Scheduled,0,0
-G2M01,Group,P002,P009,-1,Scheduled,1,0
-G3M01,Group,P008,P012,-1,Scheduled,2,0
-G4M01,Group,P008,P012,-1,Scheduled,3,0
-G5M01,Group,P007,P013,-1,Scheduled,4,0
-G6M01,Group,P007,P013,-1,Scheduled,5,0
-G7M01,Group,P006,P016,-1,Scheduled,6,0
-G8M01,Group,P006,P016,-1,Scheduled,7,0
+M001,Qualifiers,P002,P004,P002,Completed,0,1400,213,20250516
+M002,Qualifiers,P003,P016,P003,Completed,0,1430,1234,20250516
+M003,Qualifiers,P005,P015,-1,Scheduled,0,1500,0,20250516
+M004,Qualifiers,P006,P014,-1,Scheduled,0,1530,0,20250516
+M005,Qualifiers,P001,P013,-1,Scheduled,0,1520,0,20250516
+M006,Qualifiers,P007,P012,-1,Scheduled,0,1630,0,20250516
+M007,Qualifiers,P008,P011,-1,Scheduled,0,1580,0,20250516
+M008,Qualifiers,P009,P010,-1,Scheduled,0,1730,0,20250516
