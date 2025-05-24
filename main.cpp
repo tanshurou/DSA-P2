@@ -6,7 +6,7 @@
 
 // Include all component headers
 #include "MatchScheduler.hpp" // Task 1
-// #include "PlayerRegistration.hpp"     // Task 2
+#include "PlayerRegistration.hpp"     // Task 2
 // #include "SpectatorManager.hpp"       // Task 3
 // #include "ResultLogger.hpp"           // Task 4
 
