@@ -1,10 +1,13 @@
+// ResultLogger.cpp
 #include "ResultLogger.hpp"
 #include <iostream>
 #include <fstream>
 #include <sstream>
 #include <stdexcept>
-#include <iomanip>
 #include <algorithm>
+#include <iomanip>
+#include <vector>
+#include <cstdio>
 
 // ------------------------
 // Construction / Cleanup
@@ -24,16 +27,15 @@ ResultLogger::~ResultLogger() {
 }
 
 void ResultLogger::clearHistory() {
-    // clear ring buffer
-    bufferStart = 0;
-    bufferCount = 0;
-    // clear full history linked list
+    // clear linked list
     while (historyHead) {
         ListNode* tmp = historyHead;
         historyHead = historyHead->next;
         delete tmp;
     }
     historyTail = nullptr;
+    // clear ring buffer
+    bufferStart = bufferCount = 0;
 }
 
 // ------------------------
@@ -41,19 +43,16 @@ void ResultLogger::clearHistory() {
 // ------------------------
 
 void ResultLogger::addResult(const MatchResult& r) {
-    // 1) push into ring buffer
+    // ring buffer insert (overwrite oldest once full)
     if (bufferCount < recentMaxSize) {
-        // still space: place at end
         int idx = (bufferStart + bufferCount) % recentMaxSize;
         recentBuffer[idx] = r;
         ++bufferCount;
     } else {
-        // full: overwrite oldest, advance start
         recentBuffer[bufferStart] = r;
         bufferStart = (bufferStart + 1) % recentMaxSize;
     }
-
-    // 2) append to full-history linked list
+    // append to full-history list
     ListNode* node = new ListNode(r);
     if (!historyTail) {
         historyHead = historyTail = node;
@@ -63,36 +62,46 @@ void ResultLogger::addResult(const MatchResult& r) {
     }
 }
 
-MatchResult* ResultLogger::getLastNResults(int n, int& outCount) const {
-    outCount = std::min(n, bufferCount);
-    if (outCount == 0) return nullptr;
-    MatchResult* arr = new MatchResult[outCount];
+// ------------------------
+// FILTERED helpers
+// ------------------------
 
-    // newest is at index (start + count - 1) % max, then go backwards
-    for (int i = 0; i < outCount; ++i) {
-        int idx = (bufferStart + bufferCount - 1 - i + recentMaxSize)
-                  % recentMaxSize;
-        arr[i] = recentBuffer[idx];
+MatchResult* ResultLogger::getLastNResults(int n, int& outCount) const {
+    std::vector<MatchResult> temp;
+    for (int seen = 0, i = 0; i < bufferCount && seen < n; ++i) {
+        int idx = (bufferStart + bufferCount - 1 - i + recentMaxSize) % recentMaxSize;
+        const auto& m = recentBuffer[idx];
+        if (m.status == "Completed") {
+            temp.push_back(m);
+            ++seen;
+        }
     }
+    outCount = static_cast<int>(temp.size());
+    if (!outCount) return nullptr;
+    MatchResult* arr = new MatchResult[outCount];
+    for (int i = 0; i < outCount; ++i) arr[i] = temp[i];
     return arr;
 }
 
-MatchResult* ResultLogger::getPlayerHistory(int playerID, int& outCount) const {
-    // count matching entries in full history
+MatchResult* ResultLogger::getPlayerHistory(const std::string& playerID, int& outCount) const {
     int cnt = 0;
     for (ListNode* cur = historyHead; cur; cur = cur->next) {
-        if (cur->data.player1ID==playerID || cur->data.player2ID==playerID)
+        if (cur->data.status == "Completed" &&
+            (cur->data.player1ID == playerID || cur->data.player2ID == playerID))
+        {
             ++cnt;
+        }
     }
     outCount = cnt;
-    if (cnt == 0) return nullptr;
-
-    // collect them in chronological order
+    if (!cnt) return nullptr;
     MatchResult* arr = new MatchResult[cnt];
     int idx = 0;
     for (ListNode* cur = historyHead; cur; cur = cur->next) {
-        if (cur->data.player1ID==playerID || cur->data.player2ID==playerID)
+        if (cur->data.status == "Completed" &&
+            (cur->data.player1ID == playerID || cur->data.player2ID == playerID))
+        {
             arr[idx++] = cur->data;
+        }
     }
     return arr;
 }
@@ -105,38 +114,30 @@ void ResultLogger::loadHistoryFromCSV(const std::string& filename) {
     std::ifstream in(filename);
     if (!in.is_open())
         throw std::runtime_error("Cannot open " + filename + " for reading");
-
     clearHistory();
-
     std::string line;
     std::getline(in, line);  // skip header
     while (std::getline(in, line)) {
         std::istringstream ss(line);
         MatchResult r;
-        std::string ts_str;
-        char comma;
-
-        std::getline(ss, line, ','); r.matchID    = std::stoi(line);
-        std::getline(ss, r.round,   ',');
-        std::getline(ss, line, ',' ); r.player1ID    = std::stoi(line);
-        std::getline(ss, line, ',' ); r.player2ID    = std::stoi(line);
-        std::getline(ss, line, ',' ); r.player1Score = std::stoi(line);
-        std::getline(ss, line, ',' ); r.player2Score = std::stoi(line);
-        std::getline(ss, line, ',' ); r.winnerID     = std::stoi(line);
-        std::getline(ss, line, ',' ); r.duration     = std::stoi(line);
-        std::getline(ss, ts_str);
-
-        std::replace(ts_str.begin(), ts_str.end(), 'T', '-');
-        std::replace(ts_str.begin()+10, ts_str.end(), ':', '-');
-        std::istringstream ts_in(ts_str);
-        ts_in  >> r.timestamp.year
-               >> comma >> r.timestamp.month
-               >> comma >> r.timestamp.day
-               >> comma >> r.timestamp.hour
-               >> comma >> r.timestamp.minute
-               >> comma >> r.timestamp.second;
-
-        // reuse addResult to feed both buffer & list
+        std::string dateStr, timeStr, durStr;
+        std::getline(ss, r.matchID,   ',');
+        std::getline(ss, r.stage,     ',');
+        std::getline(ss, r.player1ID, ',');
+        std::getline(ss, r.player2ID, ',');
+        std::getline(ss, r.winnerID,  ',');
+        std::getline(ss, r.status,    ',');
+        std::getline(ss, timeStr,     ',');
+        std::getline(ss, durStr,      ','); r.duration = std::stoi(durStr);
+        std::getline(ss, dateStr);
+        int d = std::stoi(dateStr);
+        r.timestamp.year  = d / 10000;
+        r.timestamp.month = (d / 100) % 100;
+        r.timestamp.day   = d % 100;
+        int t = std::stoi(timeStr);
+        r.timestamp.hour   = t / 100;
+        r.timestamp.minute = t % 100;
+        r.timestamp.second = 0;
         addResult(r);
     }
     in.close();
@@ -146,123 +147,161 @@ void ResultLogger::saveHistoryToCSV(const std::string& filename) const {
     std::ofstream out(filename);
     if (!out.is_open())
         throw std::runtime_error("Cannot open " + filename + " for writing");
-
-    out << "match_id,round,player1_id,player2_id,"
-           "player1_score,player2_score,winner_id,"
-           "duration_secs,timestamp\n";
-
-    auto fmtTS = [&](const Timestamp& t){
-        std::ostringstream s;
-        s << std::setw(4)<<std::setfill('0')<<t.year << '-'
-          << std::setw(2)<<std::setfill('0')<<t.month<< '-'
-          << std::setw(2)<<std::setfill('0')<<t.day  << 'T'
-          << std::setw(2)<<std::setfill('0')<<t.hour << ':'
-          << std::setw(2)<<std::setfill('0')<<t.minute<< ':'
-          << std::setw(2)<<std::setfill('0')<<t.second;
-        return s.str();
-    };
-
+    out << "MatchID,Stage,Player1ID,Player2ID,WinnerID,"
+           "MatchStatus,Time,DurationInSeconds,Date\n";
     for (ListNode* cur = historyHead; cur; cur = cur->next) {
         const auto& r = cur->data;
-        out
-          << r.matchID<<','<<r.round<<','<<r.player1ID<<','<<r.player2ID<<','
-          << r.player1Score<<','<<r.player2Score<<','<<r.winnerID<<','
-          << r.duration<<','<<fmtTS(r.timestamp)<<'\n';
+        char dateBuf[9], timeBuf[5];
+        std::sprintf(dateBuf, "%04d%02d%02d",
+                     r.timestamp.year, r.timestamp.month, r.timestamp.day);
+        std::sprintf(timeBuf, "%02d%02d",
+                     r.timestamp.hour, r.timestamp.minute);
+        out << r.matchID   << ','
+            << r.stage     << ','
+            << r.player1ID << ','
+            << r.player2ID << ','
+            << r.winnerID  << ','
+            << r.status    << ','
+            << timeBuf     << ','
+            << r.duration  << ','
+            << dateBuf     << '\n';
     }
     out.close();
 }
 
 // ------------------------
-// Pretty-Printing (unchanged from before)
+// Pretty-Printing Tables
 // ------------------------
+
+#include <iostream>
 
 void ResultLogger::printRecent(int n) const {
     int count;
-    auto arr = getLastNResults(n, count);
+    MatchResult* arr = getLastNResults(n, count);
     if (!count) {
-        std::cout << "\n=== No recent matches to show ===\n";
+        std::cout << "\n=== No recent completed matches ===\n";
         return;
     }
-
-    std::cout << "\n=== Last " << count << " Matches ===\n"
+    std::cout << "\n=== Last " << count << " Completed Matches ===\n"
               << std::left
-              << std::setw(4)  << "ID"
-              << std::setw(15) << "Round"
+              << std::setw(8)  << "MatchID"
+              << std::setw(15) << "Stage"
+              << std::setw(12) << "Status"
               << std::setw(10) << "Duration"
               << std::setw(20) << "Timestamp"
-              << std::setw(25) << "Players (score)"
+              << std::setw(20) << "Players"
               << "Winner\n"
-              << std::string(4+15+10+20+25+6, '-') << "\n";
-
+              << std::string(8+15+12+10+20+20+6, '-') << "\n";
     for (int i = 0; i < count; ++i) {
         const auto& m = arr[i];
-        std::ostringstream ts;
-        ts << std::setw(4)<<std::setfill('0')<<m.timestamp.year << '-'
-           << std::setw(2)<<m.timestamp.month << '-'
-           << std::setw(2)<<m.timestamp.day   << ' '
-           << std::setw(2)<<m.timestamp.hour  << ':'
-           << std::setw(2)<<m.timestamp.minute<< ':'
-           << std::setw(2)<<m.timestamp.second;
-        std::string players =
-            std::to_string(m.player1ID) + "(" + std::to_string(m.player1Score) + ") vs " +
-            std::to_string(m.player2ID) + "(" + std::to_string(m.player2Score) + ")";
-
+        char ts[20];
+        std::sprintf(ts, "%04d-%02d-%02d %02d:%02d:%02d",
+                     m.timestamp.year, m.timestamp.month, m.timestamp.day,
+                     m.timestamp.hour, m.timestamp.minute, m.timestamp.second);
+        std::string players = m.player1ID + " vs " + m.player2ID;
         std::cout << std::left
-                  << std::setw(4)  << m.matchID
-                  << std::setw(15) << m.round
+                  << std::setw(8)  << m.matchID
+                  << std::setw(15) << m.stage
+                  << std::setw(12) << m.status
                   << std::setw(10) << (std::to_string(m.duration) + "s")
-                  << std::setw(20) << ts.str()
-                  << std::setw(25) << players
-                  << m.winnerID
-                  << "\n";
+                  << std::setw(20) << ts
+                  << std::setw(20) << players
+                  << m.winnerID << "\n";
     }
     delete[] arr;
 }
 
-void ResultLogger::printPlayerHistory(int playerID) const {
+void ResultLogger::printPlayerHistory(const std::string& playerID) const {
     int count;
-    auto arr = getPlayerHistory(playerID, count);
+    MatchResult* arr = getPlayerHistory(playerID, count);
     if (!count) {
-        std::cout << "\n=== No history for Player " << playerID << " ===\n";
+        std::cout << "\n=== No completed history for Player " << playerID << " ===\n";
+        return;
+    }
+    std::cout << "\n=== Completed History for Player " << playerID
+              << " (" << count << " matches) ===\n"
+              << std::left
+              << std::setw(8)  << "MatchID"
+              << std::setw(15) << "Stage"
+              << std::setw(12) << "Status"
+              << std::setw(20) << "Timestamp"
+              << std::setw(20) << "Opponent"
+              << "Winner\n"
+              << std::string(8+15+12+20+20+6, '-') << "\n";
+    for (int i = 0; i < count; ++i) {
+        const auto& m = arr[i];
+        char ts[20];
+        std::sprintf(ts, "%04d-%02d-%02d %02d:%02d:%02d",
+                     m.timestamp.year, m.timestamp.month, m.timestamp.day,
+                     m.timestamp.hour, m.timestamp.minute, m.timestamp.second);
+        std::string opp = (m.player1ID == playerID ? m.player2ID : m.player1ID);
+        std::cout << std::left
+                  << std::setw(8)  << m.matchID
+                  << std::setw(15) << m.stage
+                  << std::setw(12) << m.status
+                  << std::setw(20) << ts
+                  << std::setw(20) << opp
+                  << m.winnerID << "\n";
+    }
+    delete[] arr;
+}
+
+void ResultLogger::printMatchesOnDate(const std::string& dateStr) const {
+    if (dateStr.size() != 8) {
+        std::cout << "Invalid date format (expected YYYYMMDD)\n";
+        return;
+    }
+    int year  = std::stoi(dateStr.substr(0,4));
+    int month = std::stoi(dateStr.substr(4,2));
+    int day   = std::stoi(dateStr.substr(6,2));
+
+    std::vector<MatchResult> matches;
+    for (ListNode* cur = historyHead; cur; cur = cur->next) {
+        const auto& r = cur->data;
+        if (r.status == "Completed"
+         && r.timestamp.year  == year
+         && r.timestamp.month == month
+         && r.timestamp.day   == day)
+        {
+            matches.push_back(r);
+        }
+    }
+
+    if (matches.empty()) {
+        std::cout << "\n=== No completed matches on "
+                  << year << "-" << std::setw(2) << std::setfill('0') << month
+                  << "-" << std::setw(2) << std::setfill('0') << day
+                  << " ===\n";
         return;
     }
 
-    std::cout << "\n=== History for Player " << playerID
-              << " (" << count << " matches) ===\n"
+    std::cout << "\n=== Completed Matches on "
+              << year << "-" << std::setw(2) << std::setfill('0') << month
+              << "-" << std::setw(2) << std::setfill('0') << day
+              << " ===\n"
               << std::left
-              << std::setw(4)  << "ID"
-              << std::setw(15) << "Round"
-              << std::setw(8)  << "Result"
-              << std::setw(10) << "Opponent"
-              << std::setw(8)  << "Score"
-              << "Timestamp\n"
-              << std::string(4+15+8+10+8+10, '-') << "\n";
+              << std::setw(8)  << "MatchID"
+              << std::setw(15) << "Stage"
+              << std::setw(12) << "Status"
+              << std::setw(10) << "Duration"
+              << std::setw(20) << "Timestamp"
+              << std::setw(20) << "Players"
+              << "Winner\n"
+              << std::string(8+15+12+10+20+20+6, '-') << "\n";
 
-    for (int i = 0; i < count; ++i) {
-        const auto& m = arr[i];
-        bool win = (m.winnerID == playerID);
-        int  opp = (m.player1ID == playerID ? m.player2ID : m.player1ID);
-        int  sc  = (m.player1ID == playerID ? m.player1Score : m.player2Score);
-        int  os  = (m.player1ID == playerID ? m.player2Score : m.player1Score);
-        std::string result = win ? "Win" : "Loss";
-        std::string score  = std::to_string(sc) + "-" + std::to_string(os);
-
-        std::ostringstream ts;
-        ts << std::setw(4)<<std::setfill('0')<<m.timestamp.year << '-'
-           << std::setw(2)<<m.timestamp.month << '-'
-           << std::setw(2)<<m.timestamp.day   << ' '
-           << std::setw(2)<<m.timestamp.hour  << ':'
-           << std::setw(2)<<m.timestamp.minute<< ':'
-           << std::setw(2)<<m.timestamp.second;
-
+    for (auto& m : matches) {
+        char ts[20];
+        std::sprintf(ts, "%04d-%02d-%02d %02d:%02d:%02d",
+                     m.timestamp.year, m.timestamp.month, m.timestamp.day,
+                     m.timestamp.hour, m.timestamp.minute, m.timestamp.second);
+        std::string players = m.player1ID + " vs " + m.player2ID;
         std::cout << std::left
-                  << std::setw(4)  << m.matchID
-                  << std::setw(15) << m.round
-                  << std::setw(8)  << result
-                  << std::setw(10) << opp
-                  << std::setw(8)  << score
-                  << ts.str()
-                  << "\n";
+                  << std::setw(8)  << m.matchID
+                  << std::setw(15) << m.stage
+                  << std::setw(12) << m.status
+                  << std::setw(10) << (std::to_string(m.duration) + "s")
+                  << std::setw(20) << ts
+                  << std::setw(20) << players
+                  << m.winnerID << "\n";
     }
-    delete[] arr;
 }

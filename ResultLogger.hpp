@@ -1,25 +1,27 @@
+// ResultLogger.hpp
 #ifndef RESULTLOGGER_HPP
 #define RESULTLOGGER_HPP
 
 #include <string>
 #include <vector>
 
-// Simple ISO‐style timestamp
+/** Simple date+time container */
 struct Timestamp {
     int year, month, day, hour, minute, second;
     Timestamp(int y=0,int mo=0,int d=0,int h=0,int mi=0,int s=0)
       : year(y), month(mo), day(d), hour(h), minute(mi), second(s) {}
 };
 
-// Data recorded for each match
+/** One match’s data, as per your “Matches.csv” schema */
 struct MatchResult {
-    int matchID;
-    std::string round;
-    int player1ID, player2ID;
-    int player1Score, player2Score;
-    int winnerID;
-    int duration;          // in seconds
-    Timestamp timestamp;
+    std::string matchID;
+    std::string stage;
+    std::string player1ID;
+    std::string player2ID;
+    std::string winnerID;    // "-1" if not completed
+    std::string status;      // "Scheduled" or "Completed"
+    int         duration;    // in seconds
+    Timestamp   timestamp;   // built from Date + Time columns
 };
 
 class ResultLogger {
@@ -27,37 +29,44 @@ public:
     explicit ResultLogger(int recentSize);
     ~ResultLogger();
 
-    // record and print
+    /** Add one match to both the ring buffer and full history */
     void addResult(const MatchResult& r);
-    void printRecent(int n) const;
-    void printPlayerHistory(int playerID) const;
 
-    // CSV persistence
+    /** Print the N most‐recent completed matches */
+    void printRecent(int n) const;
+
+    /** Print all completed matches for a given player */
+    void printPlayerHistory(const std::string& playerID) const;
+
+    /** Print all completed matches on a given date (YYYYMMDD) */
+    void printMatchesOnDate(const std::string& dateStr) const;
+
+    /** Load/save using your teammate’s Matches.csv schema */
     void loadHistoryFromCSV(const std::string& filename);
     void saveHistoryToCSV(const std::string& filename) const;
 
 private:
-    // full-history linked list
     struct ListNode {
         MatchResult data;
         ListNode*   next;
         explicit ListNode(const MatchResult& m): data(m), next(nullptr) {}
     };
 
-    // ring buffer for most-recent results
-    int                     recentMaxSize;
+    // ring buffer for most-recent matches
+    int                      recentMaxSize;
     std::vector<MatchResult> recentBuffer;
-    int                     bufferStart;  // index of oldest element
-    int                     bufferCount;  // how many valid entries
+    int                      bufferStart;
+    int                      bufferCount;
 
-    // helpers for full history
-    void clearHistory();
-    MatchResult* getLastNResults(int n, int& outCount) const;
-    MatchResult* getPlayerHistory(int playerID, int& outCount) const;
-
-    // full history
+    // full history linked list
     ListNode* historyHead;
     ListNode* historyTail;
+
+    void clearHistory();
+
+    // helpers that filter out scheduled matches
+    MatchResult* getLastNResults(int n, int& outCount) const;
+    MatchResult* getPlayerHistory(const std::string& playerID, int& outCount) const;
 };
 
 #endif // RESULTLOGGER_HPP

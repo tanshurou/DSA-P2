@@ -1,3 +1,4 @@
+// test.cpp
 #include "ResultLogger.hpp"
 #include <iostream>
 #include <string>
@@ -17,32 +18,35 @@ int main(int argc, char* argv[]) {
 
     try {
         logger.loadHistoryFromCSV(csvPath);
-        std::cout << "Loaded existing history from " << csvPath << "\n";
+        std::cout << "Loaded history from " << csvPath << "\n";
     } catch (const std::exception& e) {
-        std::cout << "No existing CSV or load error: " << e.what() << "\n";
+        std::cout << "Could not load CSV: " << e.what() << "\n";
     }
 
-    // example data
-    {
-        Timestamp t1(2025,5,24,12,0,0);
-        MatchResult r1{1,"Quarterfinal",100,200,3,2,100,600,t1};
-        logger.addResult(r1);
+    // sample entries
+    logger.addResult({"M001","Qualifiers","P001","P002","P001","Completed",
+                      1500,{2025,5,20,9,0,0}});
+    logger.addResult({"M002","Qualifiers","P003","P004","-1","Scheduled",
+                      1800,{2025,5,20,10,0,0}});
+    logger.addResult({"M003","Group stage","P001","P003","P003","Completed",
+                      1700,{2025,5,21,11,0,0}});
 
-        Timestamp t2(2025,5,24,12,10,0);
-        MatchResult r2{2,"Quarterfinal",101,201,1,2,201,450,t2};
-        logger.addResult(r2);
-    }
-
+    // 1) recent completed matches
     logger.printRecent(5);
 
-    int playerID;
+    // 2) history by player
+    std::string playerID;
     std::cout << "\nEnter player ID to view history: ";
-    if (!(std::cin >> playerID)) {
-        std::cerr << "Invalid input. Exiting.\n";
-        return 1;
-    }
+    std::cin >> playerID;
     logger.printPlayerHistory(playerID);
 
+    // 3) matches by date
+    std::string dateStr;
+    std::cout << "\nEnter date (YYYYMMDD) to view matches: ";
+    std::cin >> dateStr;
+    logger.printMatchesOnDate(dateStr);
+
+    // 4) save back
     try {
         logger.saveHistoryToCSV(csvPath);
         std::cout << "\nSaved history to " << csvPath << "\n";

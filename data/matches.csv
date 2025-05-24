@@ -1,8 +1,9 @@
-G1M01,Group,P002,P009,-1,Scheduled,0,0
-G2M01,Group,P002,P009,-1,Scheduled,1,0
-G3M01,Group,P008,P012,-1,Scheduled,2,0
-G4M01,Group,P008,P012,-1,Scheduled,3,0
-G5M01,Group,P007,P013,-1,Scheduled,4,0
-G6M01,Group,P007,P013,-1,Scheduled,5,0
-G7M01,Group,P006,P016,-1,Scheduled,6,0
-G8M01,Group,P006,P016,-1,Scheduled,7,0
+MatchID,Stage,Player1ID,Player2ID,WinnerID,MatchStatus,Time,DurationInSeconds,Date
+M001,Qualifiers,P001,P002,-1,Scheduled,1430,1800,20250524
+M002,Knockout,P003,P004,P004,Completed,1600,1200,20250525
+M001,Qualifiers,P001,P002,P001,Completed,0900,1500,20250520
+M002,Qualifiers,P003,P004,-1,Scheduled,1000,1800,20250520
+M003,Group stage,P001,P003,P003,Completed,1100,1700,20250521
+M001,Qualifiers,P001,P002,P001,Completed,0900,1500,20250520
+M002,Qualifiers,P003,P004,-1,Scheduled,1000,1800,20250520
+M003,Group stage,P001,P003,P003,Completed,1100,1700,20250521
