@@ -1,0 +1,6 @@
+match_id,round,player1_id,player2_id,player1_score,player2_score,winner_id,duration_secs,timestamp
+1,Qualifier,100,150,2,1,100,360,2025-05-23T10:00:00
+2,Qualifier,200,250,3,2,200,420,2025-05-23T10:10:00
+3,Quarterfinal,100,200,3,2,100,600,2025-05-24T12:00:00
+4,Semifinal,100,300,1,0,100,720,2025-05-24T12:30:00
+5,Final,100,400,3,1,100,900,2025-05-24T13:00:00
