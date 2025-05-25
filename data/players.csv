@@ -1,16 +1,16 @@
-P002,Alice,APU,2,active,0,0,1
+P002,Alice,APU,2,active,3,3,1
 P003,Bob,APU,3,eliminated,0,0,0
 P005,Dan,APU,5,eliminated,0,0,0
 P006,Eve,APU,6,eliminated,0,0,0
-P001,John,APU,10,active,0,0,1
+P001,John,APU,10,active,3,1,1
 P007,Lim Yu Xuan,APU,17,eliminated,0,0,0
 P008,Grace,APU,18,eliminated,0,0,0
 P009,Hannah,APU,20,eliminated,0,0,0
-P010,Ian,APU,23,active,0,0,1
-P011,Jane,APU,25,active,0,0,1
-P012,Kyle,APU,28,active,0,0,2
+P010,Ian,APU,23,eliminated,3,0,2
+P011,Jane,APU,25,active,3,3,2
+P012,Kyle,APU,28,active,3,2,2
 P013,Linda,APU,30,eliminated,0,0,0
-P014,Mike,APU,32,active,0,0,2
-P015,Nina,APU,35,active,0,0,2
-P016,Owen,APU,40,active,0,0,2
+P014,Mike,APU,32,eliminated,3,1,1
+P015,Nina,APU,35,eliminated,3,1,2
+P016,Owen,APU,40,eliminated,3,1,1
 P004,Carol,APU,42,eliminated,0,0,0
