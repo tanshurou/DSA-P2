@@ -25,6 +25,8 @@ public:
     void displayStreamerSlots();
     void displayQueues();
 
+    void saveToFile(const std::string& filename);
+    void loadFromFile(const std::string& filename);
     void run(); // test interface
 };
 
