@@ -7,7 +7,7 @@
 // Include all component headers
 #include "MatchScheduler.hpp" // Task 1
 #include "PlayerRegistration.hpp"     // Task 2
-// #include "SpectatorManager.hpp"       // Task 3
+#include "SpectatorManager.hpp"       // Task 3
 // #include "ResultLogger.hpp"           // Task 4
 
 // Function prototypes for menu options
@@ -167,5 +167,69 @@ void handleMatchScheduling(MatchScheduler &scheduler, PlayerRegistration &player
         }
     } while (choice != 5);
 }
+
+void handleSpectatorManagement(SpectatorManager &specManager)
+{
+    int choice = 0;
+    do
+    {
+        std::cout << "\n===== SPECTATOR MANAGEMENT MENU =====" << std::endl;
+        std::cout << "1. Add VIP to queue" << std::endl;
+        std::cout << "2. Add general spectator to queue" << std::endl;
+        std::cout << "3. Assign streamer slot" << std::endl;
+        std::cout << "4. View current queues" << std::endl;
+        std::cout << "5. View streamer slots" << std::endl;
+        std::cout << "6. Return to main menu" << std::endl;
+
+        std::cout << "\nEnter your choice (1-6): ";
+        std::cin >> choice;
+        std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+
+        switch (choice)
+        {
+        case 1:
+        {
+            std::string name;
+            std::cout << "Enter VIP name: ";
+            std::getline(std::cin, name);
+            specManager.addVIP(name);
+            break;
+        }
+        case 2:
+        {
+            std::string name;
+            std::cout << "Enter general spectator name: ";
+            std::getline(std::cin, name);
+            specManager.addGeneralSpectator(name);
+            break;
+        }
+        case 3:
+        {
+            int slot;
+            std::string name;
+            std::cout << "Enter streamer name: ";
+            std::getline(std::cin, name);
+            std::cout << "Enter slot number (0-4): ";
+            std::cin >> slot;
+            std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+            specManager.assignStreamerSlot(slot, name);
+            break;
+        }
+        case 4:
+            specManager.displayQueues();
+            break;
+        case 5:
+            specManager.displayStreamerSlots();
+            break;
+        case 6:
+            std::cout << "Returning to main menu..." << std::endl;
+            break;
+        default:
+            std::cout << "Invalid choice. Please try again." << std::endl;
+        }
+
+    } while (choice != 6);
+}
+
 
 // Additional handler functions would be implemented similarly
