@@ -300,7 +300,7 @@ void SpectatorManager::loadFromFile(const std::string& filename) {
             int slot = std::stoi(type.substr(14)) - 1;
             if (slot >= 0 && slot < MAX_STREAMERS) {
                 streamerSlots[slot] = name;
-                streamerMatchIDs[slot] = matchID;
+                streamerMatchIDs[slot] = trim(matchID);
             }
         }
     }
