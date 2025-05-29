@@ -26,6 +26,8 @@ public:
     bool removeSpectatorFromVIP();
     bool removeSpectatorFromGeneral();
     void displayNextSpectators();
+    void displayVIPQueue();        
+    void displayGeneralQueue();           
 
     // Streamer operations
     bool assignStreamerSlot(int slot, const std::string& name, const std::string& matchID);
@@ -35,7 +37,6 @@ public:
 
     // Display operations
     void displayQueues();
-    void displayUpcomingMatches();
 
     // File operations
     void saveToFile(const std::string& filename);

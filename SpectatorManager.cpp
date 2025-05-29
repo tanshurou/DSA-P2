@@ -6,6 +6,13 @@
 #include <algorithm>
 #include <map>
 
+std::string trim(const std::string& str) {
+    size_t first = str.find_first_not_of(" \t\r\n");
+    if (first == std::string::npos) return "";
+    size_t last = str.find_last_not_of(" \t\r\n");
+    return str.substr(first, last - first + 1);
+}
+
 SpectatorManager::SpectatorManager() {
     vipFront = vipRear = -1;
     genFront = genRear = -1;
@@ -27,9 +34,10 @@ bool SpectatorManager::addVIP(const std::string& name) {
         }
     }
     if ((vipRear + 1) % MAX_VIP == vipFront) {
-        std::cout << "VIP Queue Full\n";
+        std::cout << "[ERROR] VIP Queue Full (max " << MAX_VIP << " spectators).\n";
         return false;
     }
+
     if (vipFront == -1) vipFront = 0;
     vipRear = (vipRear + 1) % MAX_VIP;
     vipQueue[vipRear] = name;
@@ -48,7 +56,7 @@ bool SpectatorManager::addGeneralSpectator(const std::string& name) {
         }
     }
     if ((genRear + 1) % MAX_GENERAL == genFront) {
-        std::cout << "General Queue Full\n";
+        std::cout << "[ERROR] General Queue Full (max " << MAX_GENERAL << " spectators).\n";
         return false;
     }
     if (genFront == -1) genFront = 0;
@@ -79,20 +87,13 @@ bool SpectatorManager::removeStreamerSlot(int slot) {
 }
 
 void SpectatorManager::displayStreamerSlots() {
-    std::cout << "[STREAMER SLOTS]\n";
+    std::cout << "Streamer Slots (Capacity: " << MAX_STREAMERS << "):\n";
     for (int i = 0; i < MAX_STREAMERS; i++) {
         std::cout << "Slot " << (i + 1) << ": " << streamerSlots[i];
         if (!streamerMatchIDs[i].empty())
-            std::cout << " (Match " << streamerMatchIDs[i] << ")";
+            std::cout << " (Match ID: " << streamerMatchIDs[i] << ")";
         std::cout << "\n";
     }
-}
-
-std::string trim(const std::string& str) {
-    size_t first = str.find_first_not_of(" \t\r\n");
-    if (first == std::string::npos) return "";
-    size_t last = str.find_last_not_of(" \t\r\n");
-    return str.substr(first, last - first + 1);
 }
 
 void SpectatorManager::displayStreamerSchedule() {
@@ -152,26 +153,94 @@ void SpectatorManager::displayStreamerSchedule() {
 }
 
 void SpectatorManager::displayQueues() {
-    std::cout << "VIP Queue:\n";
-    for (int i = vipFront; i != -1 && i != (vipRear + 1) % MAX_VIP; i = (i + 1) % MAX_VIP)
-        std::cout << vipQueue[i] << "\n";
+    std::cout << "VIP Queue (Capacity: " << MAX_VIP << "):\n";
+    if (vipFront == -1) {
+        std::cout << "[INFO] VIP Queue is empty.\n";
+    } else {
+        int count = 1;
+        int i = vipFront;
+        while (true) {
+            std::cout << "Slot " << count << ": " << vipQueue[i] << "\n";
+            if (i == vipRear) break;
+            i = (i + 1) % MAX_VIP;
+            count++;
+        }
+    }
 
-    std::cout << "General Queue:\n";
-    for (int i = genFront; i != -1 && i != (genRear + 1) % MAX_GENERAL; i = (i + 1) % MAX_GENERAL)
-        std::cout << generalQueue[i] << "\n";
+    std::cout << "\nGeneral Queue (Capacity: " << MAX_GENERAL << "):\n";
+    if (genFront == -1) {
+        std::cout << "[INFO] General Queue is empty.\n";
+    } else {
+        int count = 1;
+        int i = genFront;
+        while (true) {
+            std::cout << "Slot " << count << ": " << generalQueue[i] << "\n";
+            if (i == genRear) break;
+            i = (i + 1) % MAX_GENERAL;
+            count++;
+        }
+    }
+}
+
+void SpectatorManager::displayVIPQueue() {
+    std::cout << "VIP Queue (Capacity: " << MAX_VIP << "):\n";
+    if (vipFront == -1) {
+        std::cout << "[INFO] VIP Queue is empty.\n";
+        return;
+    }
+
+    int i = vipFront, count = 1;
+    while (true) {
+        std::cout << "Slot " << count++ << ": " << vipQueue[i] << "\n";
+        if (i == vipRear) break;
+        i = (i + 1) % MAX_VIP;
+    }
+}
+
+void SpectatorManager::displayGeneralQueue() {
+    std::cout << "General Queue (Capacity: " << MAX_GENERAL << "):\n";
+    if (genFront == -1) {
+        std::cout << "[INFO] General Queue is empty.\n";
+        return;
+    }
+
+    int i = genFront, count = 1;
+    while (true) {
+        std::cout << "Slot " << count++ << ": " << generalQueue[i] << "\n";
+        if (i == genRear) break;
+        i = (i + 1) % MAX_GENERAL;
+    }
 }
 
 void SpectatorManager::displayNextSpectators() {
     std::cout << "\n[Next in VIP Queue]:\n";
     int count = 0;
-    for (int i = vipFront; i != -1 && i != (vipRear + 1) % MAX_VIP && count < 3; i = (i + 1) % MAX_VIP, count++) {
-        std::cout << "- " << vipQueue[i] << "\n";
+    int i = vipFront;
+
+    while (vipFront != -1 && count < 3) {
+        std::cout << "Slot " << (count + 1) << ": " << vipQueue[i] << "\n";
+        if (i == vipRear) break;
+        i = (i + 1) % MAX_VIP;
+        count++;
+    }
+
+    if (vipFront == -1 || count == 0) {
+        std::cout << "[INFO] VIP Queue is empty.\n";
     }
 
     std::cout << "\n[Next in General Queue]:\n";
     count = 0;
-    for (int i = genFront; i != -1 && i != (genRear + 1) % MAX_GENERAL && count < 3; i = (i + 1) % MAX_GENERAL, count++) {
-        std::cout << "- " << generalQueue[i] << "\n";
+    i = genFront;
+
+    while (genFront != -1 && count < 3) {
+        std::cout << "Slot " << (count + 1) << ": " << generalQueue[i] << "\n";
+        if (i == genRear) break;
+        i = (i + 1) % MAX_GENERAL;
+        count++;
+    }
+
+    if (genFront == -1 || count == 0) {
+        std::cout << "[INFO] General Queue is empty.\n";
     }
 }
 
@@ -286,6 +355,11 @@ void SpectatorManager::loadFromFile(const std::string& filename) {
         streamerMatchIDs[i] = "";
     }
 
+    std::string vipNames[MAX_VIP];
+    std::string genNames[MAX_GENERAL];
+    int vipCount = 0;
+    int genCount = 0;
+
     std::string line;
     while (std::getline(file, line)) {
         std::stringstream ss(line);
@@ -294,9 +368,14 @@ void SpectatorManager::loadFromFile(const std::string& filename) {
         std::getline(ss, name, ',');
         std::getline(ss, matchID);
 
-        if (type == "VIP") addVIP(name);
-        else if (type == "GENERAL") addGeneralSpectator(name);
-        else if (type.rfind("STREAMER_SLOT_", 0) == 0) {
+        type = trim(type);
+        name = trim(name);
+
+        if (type == "VIP" && vipCount < MAX_VIP) {
+            vipNames[vipCount++] = name;
+        } else if (type == "GENERAL" && genCount < MAX_GENERAL) {
+            genNames[genCount++] = name;
+        } else if (type.rfind("STREAMER_SLOT_", 0) == 0) {
             int slot = std::stoi(type.substr(14)) - 1;
             if (slot >= 0 && slot < MAX_STREAMERS) {
                 streamerSlots[slot] = name;
@@ -304,23 +383,30 @@ void SpectatorManager::loadFromFile(const std::string& filename) {
             }
         }
     }
-
     file.close();
+
+    // Manual bubble sort for VIP names
+    for (int i = 0; i < vipCount - 1; ++i) {
+        for (int j = 0; j < vipCount - i - 1; ++j) {
+            if (vipNames[j] > vipNames[j + 1]) {
+                std::swap(vipNames[j], vipNames[j + 1]);
+            }
+        }
+    }
+
+    // Manual bubble sort for General names
+    for (int i = 0; i < genCount - 1; ++i) {
+        for (int j = 0; j < genCount - i - 1; ++j) {
+            if (genNames[j] > genNames[j + 1]) {
+                std::swap(genNames[j], genNames[j + 1]);
+            }
+        }
+    }
+
+    // Add sorted names to queues
+    for (int i = 0; i < vipCount; ++i) addVIP(vipNames[i]);
+    for (int i = 0; i < genCount; ++i) addGeneralSpectator(genNames[i]);
     std::cout << "[INFO] Spectator data loaded from '" << filename << "'\n";
-}
-
-void SpectatorManager::displayUpcomingMatches() {
-    std::ifstream file("data/matches.csv");
-    if (!file.is_open()) {
-        std::cout << "[WARNING] Unable to load matches.csv.\n";
-        return;
-    }
-    std::string line;
-    std::cout << "[UPCOMING MATCHES]\n";
-    while (std::getline(file, line)) {
-        std::cout << line << "\n";
-    }
-    file.close();
 }
 
 void SpectatorManager::run() {
@@ -349,99 +435,141 @@ void SpectatorManager::run() {
         switch (mainChoice) {
             case 1: { // VIP Management
                 int vipChoice;
-                std::cout << "\n[VIP MANAGEMENT]\n";
-                std::cout << "1. Add VIP\n";
-                std::cout << "2. Remove VIP\n";
-                std::cout << "Choose an action: ";
-                std::cin >> vipChoice;
-                std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+                do {
+                    std::cout << "\n[VIP MANAGEMENT]\n";
+                    std::cout << "1. Add VIP\n";
+                    std::cout << "2. Remove VIP\n";
+                    std::cout << "3. View VIP Queue\n";
+                    std::cout << "4. Back to Main Menu\n";
+                    std::cout << "Choose an action: ";
+                    std::cin >> vipChoice;
+                    std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
 
-                if (vipChoice == 1) {
-                    std::string name;
-                    std::cout << "Enter VIP name: ";
-                    std::getline(std::cin, name);
-                    if (addVIP(name))
-                        std::cout << "[SUCCESS] VIP \"" << name << "\" added to the queue.\n";
-                    else
-                        std::cout << "[ERROR] Failed to add VIP \"" << name << "\".\n";
-
-                } else if (vipChoice == 2) {
-                    removeSpectatorFromVIP();
-                } else {
-                    std::cout << "[WARNING] Invalid VIP action.\n";
-                }
+                    switch (vipChoice) {
+                        case 1: {
+                            std::string name;
+                            std::cout << "Enter VIP name: ";
+                            std::getline(std::cin, name);
+                            if (addVIP(name))
+                                std::cout << "[SUCCESS] VIP \"" << name << "\" added to the queue.\n";
+                            else
+                                std::cout << "[ERROR] Failed to add VIP \"" << name << "\".\n";
+                            break;
+                        }
+                        case 2:
+                            removeSpectatorFromVIP();
+                            break;
+                        case 3:
+                            displayVIPQueue();
+                            break;
+                        case 4:
+                            std::cout << "[INFO] Returning to Main Menu...\n";
+                            break;
+                        default:
+                            std::cout << "[WARNING] Invalid VIP action.\n";
+                    }
+                } while (vipChoice != 4);
                 break;
             }
+
             case 2: { // General Spectator Management
                 int genChoice;
-                std::cout << "\n[GENERAL SPECTATOR MANAGEMENT]\n";
-                std::cout << "1. Add General Spectator\n";
-                std::cout << "2. Remove General Spectator\n";
-                std::cout << "Choose an action: ";
-                std::cin >> genChoice;
-                std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+                do {
+                    std::cout << "\n[GENERAL SPECTATOR MANAGEMENT]\n";
+                    std::cout << "1. Add General Spectator\n";
+                    std::cout << "2. Remove General Spectator\n";
+                    std::cout << "3. View General Queue\n";
+                    std::cout << "4. Back to Main Menu\n";
+                    std::cout << "Choose an action: ";
+                    std::cin >> genChoice;
+                    std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
 
-                if (genChoice == 1) {
-                    std::string name;
-                    std::cout << "Enter general spectator name: ";
-                    std::getline(std::cin, name);
-                    if (addGeneralSpectator(name))
-                        std::cout << "[SUCCESS] Spectator \"" << name << "\" added to the queue.\n";
-                    else
-                        std::cout << "[ERROR] Failed to add spectator \"" << name << "\".\n";
-
-                } else if (genChoice == 2) {
-                    removeSpectatorFromGeneral();
-                } else {
-                    std::cout << "[WARNING] Invalid spectator action.\n";
-                }
+                    switch (genChoice) {
+                        case 1: {
+                            std::string name;
+                            std::cout << "Enter general spectator name: ";
+                            std::getline(std::cin, name);
+                            if (addGeneralSpectator(name))
+                                std::cout << "[SUCCESS] Spectator \"" << name << "\" added to the queue.\n";
+                            else
+                                std::cout << "[ERROR] Failed to add spectator \"" << name << "\".\n";
+                            break;
+                        }
+                        case 2:
+                            removeSpectatorFromGeneral();
+                            break;
+                        case 3:
+                            displayGeneralQueue();
+                            break;
+                        case 4:
+                            std::cout << "[INFO] Returning to Main Menu...\n";
+                            break;
+                        default:
+                            std::cout << "[WARNING] Invalid spectator action.\n";
+                    }
+                } while (genChoice != 4);
                 break;
             }
+
             case 3: { // Streamer Slot Management
                 int streamChoice;
-                std::cout << "\n[STREAMER SLOT MANAGEMENT]\n";
-                std::cout << "1. Assign streamer slot\n";
-                std::cout << "2. Remove streamer slot\n";
-                std::cout << "Choose an action: ";
-                std::cin >> streamChoice;
-                std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+                do {
+                    std::cout << "\n[STREAMER SLOT MANAGEMENT]\n";
+                    std::cout << "1. Assign streamer slot\n";
+                    std::cout << "2. Remove streamer slot\n";
+                    std::cout << "3. View streamer slots\n";
+                    std::cout << "4. Back to Main Menu\n";
+                    std::cout << "Choose an action: ";
+                    std::cin >> streamChoice;
+                    std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
 
-                if (streamChoice == 1) {
-                    std::string name, matchID;
-                    int slot;
-                    std::cout << "Enter streamer name: ";
-                    std::getline(std::cin, name);
-                    std::cout << "Enter match ID: ";
-                    std::getline(std::cin, matchID);
-                    std::cout << "Enter slot number (1 to " << MAX_STREAMERS << "): ";
-                    std::cin >> slot;
-                    std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-                    assignStreamerSlot(slot - 1, name, matchID);
-                } else if (streamChoice == 2) {
-                    int slot;
-                    displayStreamerSlots();
-                    std::cout << "Enter slot number to remove (1 to " << MAX_STREAMERS << "): ";
-                    std::cin >> slot;
-                    std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-                    if (removeStreamerSlot(slot - 1)) {
-                        std::cout << "[SUCCESS] Streamer slot " << slot << " cleared.\n";
-                    } else {
-                        std::cout << "[ERROR] Invalid slot number or slot already empty.\n";
+                    switch (streamChoice) {
+                        case 1: {
+                            std::string name, matchID;
+                            int slot;
+                            std::cout << "Enter streamer name: ";
+                            std::getline(std::cin, name);
+                            std::cout << "Enter match ID: ";
+                            std::getline(std::cin, matchID);
+                            std::cout << "Enter slot number (1 to " << MAX_STREAMERS << "): ";
+                            std::cin >> slot;
+                            std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+                            assignStreamerSlot(slot - 1, name, matchID);
+                            break;
+                        }
+                        case 2: {
+                            int slot;
+                            displayStreamerSlots();
+                            std::cout << "Enter slot number to remove (1 to " << MAX_STREAMERS << "): ";
+                            std::cin >> slot;
+                            std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+                            if (removeStreamerSlot(slot - 1)) {
+                                std::cout << "[SUCCESS] Streamer slot " << slot << " cleared.\n";
+                            } else {
+                                std::cout << "[ERROR] Invalid slot number or slot already empty.\n";
+                            }
+                            break;
+                        }
+                        case 3:
+                            displayStreamerSlots();
+                            break;
+                        case 4:
+                            std::cout << "[INFO] Returning to Main Menu...\n";
+                            break;
+                        default:
+                            std::cout << "[WARNING] Invalid streamer action.\n";
                     }
-
-                } else {
-                    std::cout << "[WARNING] Invalid streamer action.\n";
-                }
+                } while (streamChoice != 4);
                 break;
             }
+
             case 4: { // Display Info
                 int displayChoice;
                 std::cout << "\n[DISPLAY INFORMATION]\n";
                 std::cout << "1. View next 3 spectators in each queue\n";
                 std::cout << "2. View all queues\n";
                 std::cout << "3. View streamer slots\n";
-                std::cout << "4. View upcoming matches\n";
-                std::cout << "5. View streamer match schedule\n";
+                std::cout << "4. View streamer match schedule\n";
                 std::cout << "Choose an option: ";
                 std::cin >> displayChoice;
                 std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
@@ -450,15 +578,16 @@ void SpectatorManager::run() {
                     case 1: displayNextSpectators(); break;
                     case 2: displayQueues(); break;
                     case 3: displayStreamerSlots(); break;
-                    case 4: displayUpcomingMatches(); break;
-                    case 5: displayStreamerSchedule(); break;
+                    case 4: displayStreamerSchedule(); break;
                     default: std::cout << "[WARNING] Invalid display option.\n";
                 }
                 break;
             }
+
             case 5:
                 std::cout << "Exiting Spectator Manager...\n";
                 break;
+
             default:
                 std::cout << "[WARNING] Invalid main menu option.\n";
         }
