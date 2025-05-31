@@ -12,10 +12,9 @@ void displayMenu() {
     cout << "\n========== Tournament Registration System ==========\n";
     cout << "1. Display check-in queue\n";
     cout << "2. Player check-in (existing)\n";
-    cout << "3. Register new player (manual input)\n";
-    cout << "4. Withdraw player from tournament\n";
-    cout << "5. Process next player in queue\n";
-    cout << "6. Display ready matches\n";
+    cout << "3. Withdraw player from tournament\n";
+    cout << "4. Process next player in queue\n";
+    cout << "5. Display ready matches\n";
     cout << "0. Exit program\n";
     cout << "========================================================\n";
     cout << "Enter your choice: ";
@@ -78,32 +77,16 @@ int main() {
                 break;
             }
             case 3: {
-                string name, university;
-                int ranking;
-                char priority;
-                cout << "Enter name: ";
-                getline(cin, name);
-                cout << "Enter university: ";
-                getline(cin, university);
-                cout << "Enter ranking: ";
-                cin >> ranking;
-                cout << "Priority (E: Early, W: Wildcard, R: Regular): ";
-                cin >> priority;
-                cin.ignore();
-                reg.registerNewPlayer(name.c_str(), university.c_str(), ranking, priority);
-                break;
-            }
-            case 4: {
                 cout << "Enter Player ID to withdraw: ";
                 getline(cin, playerID);
                 reg.withdrawPlayer(playerID.c_str());
                 break;
             }
-            case 5: {
+            case 4: {
                 reg.processCheckInQueue();
                 break;
             }
-            case 6: {
+            case 5: {
                 reg.displayReadyMatches();
                 break;
             }
@@ -236,29 +219,6 @@ void PlayerRegistration::checkInPlayer(const char* playerID) {
     }
 
     cout << "Player not found.\n";
-}
-
-void PlayerRegistration::registerNewPlayer(const char* name, const char* university, int ranking, char priorityType) {
-    if (totalPlayers >= 100) {
-        cout << "Player limit reached.\n";
-        return;
-    }
-
-    Player& p = players[totalPlayers];
-    sprintf(p.playerID, "P%03d", totalPlayers + 1);
-    strcpy(p.name, name);
-    strcpy(p.university, university);
-    p.ranking = ranking;
-    strcpy(p.status, "active");
-    p.matchesPlayed = 0;
-    p.points = 0;
-    strcpy(p.grouping, "0");
-
-    p.isEarlyBird = (priorityType == 'E' || priorityType == 'e');
-    p.isWildcard = (priorityType == 'W' || priorityType == 'w');
-
-    totalPlayers++;
-    checkInPlayer(p.playerID);
 }
 
 void PlayerRegistration::processCheckInQueue() {
