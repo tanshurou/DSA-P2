@@ -13,45 +13,44 @@ int main(int argc, char* argv[]) {
     SetConsoleCP(CP_UTF8);
 #endif
 
-    std::string csvPath = (argc > 1 ? argv[1] : "data/match_history.csv");
-    ResultLogger logger(5);
+    std::string csvPath = (argc > 1 ? argv[1] : "data/matches.csv");
+    ResultLogger logger(10);
 
     try {
         logger.loadHistoryFromCSV(csvPath);
-        std::cout << "Loaded history from " << csvPath << "\n";
     } catch (const std::exception& e) {
-        std::cout << "Could not load CSV: " << e.what() << "\n";
+        std::cerr << "Error loading CSV: " << e.what() << "\n";
+        return 1;
     }
 
-    // sample entries
-    logger.addResult({"M001","Qualifiers","P001","P002","P001","Completed",
-                      1500,{2025,5,20,9,0,0}});
-    logger.addResult({"M002","Qualifiers","P003","P004","-1","Scheduled",
-                      1800,{2025,5,20,10,0,0}});
-    logger.addResult({"M003","Group stage","P001","P003","P003","Completed",
-                      1700,{2025,5,21,11,0,0}});
+    while (true) {
+        std::cout << "\n=== Tournament Logger Menu ===\n"
+                  << "1) Show last 5 completed matches\n"
+                  << "2) Show history for a player\n"
+                  << "3) Show matches on a date\n"
+                  << "4) Exit\n"
+                  << "Select an option (1-4): ";
+        int choice;
+        if (!(std::cin >> choice)) break;
 
-    // 1) recent completed matches
-    logger.printRecent(5);
-
-    // 2) history by player
-    std::string playerID;
-    std::cout << "\nEnter player ID to view history: ";
-    std::cin >> playerID;
-    logger.printPlayerHistory(playerID);
-
-    // 3) matches by date
-    std::string dateStr;
-    std::cout << "\nEnter date (YYYYMMDD) to view matches: ";
-    std::cin >> dateStr;
-    logger.printMatchesOnDate(dateStr);
-
-    // 4) save back
-    try {
-        logger.saveHistoryToCSV(csvPath);
-        std::cout << "\nSaved history to " << csvPath << "\n";
-    } catch (const std::exception& e) {
-        std::cerr << "Error saving CSV: " << e.what() << "\n";
+        if (choice == 1) {
+            logger.printRecent(10);
+        } else if (choice == 2) {
+            std::string pid;
+            std::cout << "Enter player ID: ";
+            std::cin >> pid;
+            logger.printPlayerHistory(pid);
+        } else if (choice == 3) {
+            std::string date;
+            std::cout << "Enter date (YYYYMMDD): ";
+            std::cin >> date;
+            logger.printMatchesOnDate(date);
+        } else if (choice == 4) {
+            std::cout << "Exiting.\n";
+            break;
+        } else {
+            std::cout << "Invalid selection.\n";
+        }
     }
 
     return 0;

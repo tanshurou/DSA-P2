@@ -103,9 +103,29 @@ struct CircularQueue
   }
 };
 
-CircularQueue groupMatchQueue;
+CircularQueue groupMatchQueues[MAX_GROUPS];
 
 // Utilities function
+void rebuildGroupQueuesFromMatches()
+{
+  for (int g = 0; g < MAX_GROUPS; g++)
+  {
+    groupMatchQueues[g].init(); // Clear queue
+  }
+
+  for (int i = 0; i < matchCount; i++)
+  {
+    if (matches[i].stage == GROUP_STAGE && !matches[i].isPlayed)
+    {
+      int groupID = matches[i].groupID;
+      if (groupID >= 0 && groupID < MAX_GROUPS)
+      {
+        groupMatchQueues[groupID].enqueue(matches[i]);
+      }
+    }
+  }
+}
+
 void loadPlayersFromFile(const char *filename)
 {
   FILE *file = fopen(filename, "r");
@@ -519,7 +539,7 @@ void logResult(char matchID[10], int winnerIndex)
   cout << "[LOG] Match " << matchID << " result: Winner is " << players[winnerIndex].name << "\n";
 }
 
-void setMatchResult(int matchIndex, int winnerIndex)
+void setMatchResult(int matchIndex, int winnerIndex, TournamentStage stage)
 {
   matches[matchIndex].winnerIndex = winnerIndex;
   matches[matchIndex].isPlayed = true;
@@ -527,9 +547,16 @@ void setMatchResult(int matchIndex, int winnerIndex)
   logResult(matches[matchIndex].matchID, winnerIndex);
 
   int loserIndex = (matches[matchIndex].player1Index == winnerIndex) ? matches[matchIndex].player2Index : matches[matchIndex].player1Index;
-  if (strcmp(players[loserIndex].status, "eliminated") != 0)
+  if (strcmp(players[loserIndex].status, "eliminated") != 0 && stage != GROUP_STAGE)
   {
     strcpy(players[loserIndex].status, "eliminated");
+  }
+
+  if (stage == GROUP_STAGE)
+  {
+    players[winnerIndex].points += 1;
+    players[winnerIndex].matchesPlayed += 1;
+    players[loserIndex].matchesPlayed += 1;
   }
 }
 
@@ -643,27 +670,87 @@ void generateQualifierMatches()
 void collectWinners(TournamentStage stage)
 {
   advancingCount = 0;
-
-  // keep players with active status in a list
-  for (int i = 0; i < playerCount; i++)
+  if (stage == QUALIFIERS)
   {
-    if (string(players[i].status) == "active")
+    // keep players with active status in a list
+    for (int i = 0; i < playerCount; i++)
     {
-      advancingPlayers[advancingCount] = players[i];
-      advancingCount += 1;
+      if (string(players[i].status) == "active")
+      {
+        advancingPlayers[advancingCount] = players[i];
+        advancingCount += 1;
+      }
+      else
+      {
+        cout << players[i].name << " is eliminated "
+             << players[i].status << endl;
+      }
     }
-    else
-    {
-      cout << players[i].name << " is eliminated "
-           << players[i].status << endl;
-    }
+
+    // shuffle players
+    shufflePlayers(advancingPlayers, advancingCount);
+
+    cout << "\nPlayers Advancing from Qualifiers: \n";
+    displayPlayers(advancingPlayers, advancingCount);
   }
 
-  // shuffle players
-  shufflePlayers(advancingPlayers, advancingCount);
+  else if (stage == GROUP_STAGE)
+  {
+    for (int g = 1; g <= MAX_GROUPS; g++)
+    {
+      Player groupPlayers[GROUP_SIZE];
+      int indices[GROUP_SIZE]; // Store their original indices in the global player array
+      int count = 0;
 
-  cout << "\nPlayers Advancing from Qualifiers: \n";
-  displayPlayers(advancingPlayers, advancingCount);
+      // Collect players from group g
+      for (int i = 0; i < playerCount; i++)
+      {
+        if (players[i].group == g)
+        {
+          groupPlayers[count] = players[i];
+          indices[count] = i; // Save original index
+          count++;
+        }
+      }
+
+      // Sort groupPlayers by points descending, break ties with rank
+      for (int i = 0; i < count - 1; i++)
+      {
+        for (int j = i + 1; j < count; j++)
+        {
+          if (groupPlayers[j].points > groupPlayers[i].points ||
+              (groupPlayers[j].points == groupPlayers[i].points && groupPlayers[j].rank < groupPlayers[i].rank))
+          {
+            // Swap both player and index
+            Player tempP = groupPlayers[i];
+            groupPlayers[i] = groupPlayers[j];
+            groupPlayers[j] = tempP;
+
+            int tempI = indices[i];
+            indices[i] = indices[j];
+            indices[j] = tempI;
+          }
+        }
+      }
+
+      // Top 2 advance
+      if (count >= 2)
+      {
+        advancingPlayers[advancingCount++] = groupPlayers[0];
+        advancingPlayers[advancingCount++] = groupPlayers[1];
+
+        // Set eliminated for the rest
+        for (int i = 2; i < count; i++)
+        {
+          strcpy(players[indices[i]].status, "eliminated");
+        }
+      }
+    }
+
+    cout << "\nPlayers Advancing from Group Stage: \n";
+    displayPlayers(advancingPlayers, advancingCount);
+    savePlayersToFile("data/players.csv");
+  }
 }
 
 void assignPlayersToGroups()
@@ -706,38 +793,31 @@ void assignPlayersToGroups()
 
 void generateRoundRobinMatches()
 {
-  // Load existing matches so we don't overwrite
   loadMatchesFromFile("data/matches.csv");
-  groupMatchQueue.init(); // Reset the queue
 
-  // Step 1: Determine latest match ID number
+  for (int i = 0; i < MAX_GROUPS; i++)
+  {
+    groupMatchQueues[i].init(); // Reset each group's queue
+  }
+
   int matchIDCounter = 1;
   if (matchCount > 0)
   {
-    // Get the number part of the last match ID
     char lastID[10];
     strcpy(lastID, matches[matchCount - 1].matchID);
     if (lastID[0] == 'M')
-    {
       matchIDCounter = atoi(lastID + 1) + 1;
-    }
-    else if (lastID[0] == 'G') // Handle G1M01 etc., optional
-    {
+    else if (lastID[0] == 'G')
       matchIDCounter = matchCount + 1;
-    }
   }
 
-  // Step 2: Find latest start time from qualifiers
   int latestQualifierTime = 0;
   for (int i = 0; i < matchCount; i++)
   {
     if (matches[i].stage == QUALIFIERS && matches[i].startTime > latestQualifierTime)
-    {
       latestQualifierTime = matches[i].startTime;
-    }
   }
 
-  // Step 3: Wrap time properly
   int hour = latestQualifierTime / 100;
   int minute = latestQualifierTime % 100 + 30;
   if (minute >= 60)
@@ -747,21 +827,16 @@ void generateRoundRobinMatches()
   }
   int baseStartTime = hour * 100 + minute;
 
-  // Step 4: Get date for group matches
   int date = getDate();
 
-  // Step 5: Generate round-robin matches for each group
   for (int g = 0; g < MAX_GROUPS; g++)
   {
     int size = 0;
     int groupPlayers[GROUP_SIZE];
-
     for (int i = 0; i < playerCount; i++)
     {
       if (players[i].group == g + 1)
-      {
         groupPlayers[size++] = i;
-      }
     }
 
     groupCounts[g] = size;
@@ -794,7 +869,7 @@ void generateRoundRobinMatches()
         m.startTime = h * 100 + m_start;
 
         matches[matchCount++] = m;
-        groupMatchQueue.enqueue(m);
+        groupMatchQueues[g].enqueue(m);
         matchNumInGroup++;
       }
     }
@@ -965,7 +1040,7 @@ void generateMatches()
   }
   else if (currentStage == GROUP_STAGE)
   {
-    if (groupMatchQueue.isEmpty())
+    if (allMatchesPlayedInStage(GROUP_STAGE))
     {
       cout << "All group matches played.\n";
       // Here you should calculate group rankings and advance players
@@ -973,7 +1048,7 @@ void generateMatches()
       collectWinners(GROUP_STAGE); // You’ll need to implement collecting winners based on group points
       // currentStage = KNOCKOUT_STAGE;
       // generateKnockoutMatches();
-      printMatches(KNOCKOUT_STAGE);
+      // printMatches(KNOCKOUT_STAGE);
     }
     else
     {
@@ -1032,12 +1107,12 @@ bool getWinnerDone(int matchIndex)
     }
     else if (winnerChoice == 1)
     {
-      setMatchResult(matches[matchIndex].matchIndex, matches[matchIndex].player1Index);
+      setMatchResult(matches[matchIndex].matchIndex, matches[matchIndex].player1Index, QUALIFIERS);
       invalidInput = false;
     }
     else if (winnerChoice == 2)
     {
-      setMatchResult(matches[matchIndex].matchIndex, matches[matchIndex].player2Index);
+      setMatchResult(matches[matchIndex].matchIndex, matches[matchIndex].player2Index, QUALIFIERS);
       invalidInput = false;
     }
     else
@@ -1089,146 +1164,91 @@ void inputMatchResult()
       cout << "All matches have been completed. Please move on to the next stage.\n";
     }
   }
-
-  saveMatchesToFile("data/matches.csv");
-}
-
-void inputMatchResultCopy()
-{
-  if (currentStage == GROUP_STAGE)
+  else if (currentStage == GROUP_STAGE)
   {
-    cout << "Input result for Group stage match or Solo stage match?\n";
-    cout << "1. Group Stage Match\n2. Solo Stage Match (Qualifier/Knockout)\nChoice: ";
-    int stageChoice;
-    cin >> stageChoice;
-
-    if (stageChoice == 1)
+    while (true)
     {
-      if (groupMatchQueue.isEmpty())
+      // Show only groups that have matches
+      cout << "\nAvailable groups with pending matches:\n";
+      bool hasAvailableGroups = false;
+      for (int g = 0; g < MAX_GROUPS; g++)
       {
-        cout << "No group matches left to input result for.\n";
-        return;
-      }
-      Match m;
-      groupMatchQueue.dequeue(m);
-      cout << "Group " << (m.groupID + 1) << " Match: "
-           << players[m.player1Index].name << " vs " << players[m.player2Index].name << "\n";
-      cout << "Who won? Enter 1 for " << players[m.player1Index].name
-           << ", 2 for " << players[m.player2Index].name << ": ";
-      int winnerChoice;
-      cin >> winnerChoice;
-      if (winnerChoice == 1)
-        setMatchResult(m.matchIndex, m.player1Index);
-      else if (winnerChoice == 2)
-        setMatchResult(m.matchIndex, m.player2Index);
-      else
-      {
-        cout << "Invalid choice, match skipped.\n";
-        return;
+        if (!groupMatchQueues[g].isEmpty())
+        {
+          cout << "Group " << (g + 1) << "\n";
+          hasAvailableGroups = true;
+        }
       }
 
-      // Get match duration
-      int durationInSeconds;
-      cout << "Enter match duration in seconds (max 1800): ";
-      cin >> durationInSeconds;
-      if (durationInSeconds < 0 || durationInSeconds > 1800)
+      if (!hasAvailableGroups)
       {
-        cout << "Invalid duration. It must be between 0 and 1800 seconds.\n";
-        return;
+        cout << "All group matches have been completed.\n";
+        break;
       }
 
-      // Save the duration for the match
-      matches[m.matchIndex].durationInSeconds = durationInSeconds;
-      cout << "Hello";
-      cout << matches[m.matchIndex].durationInSeconds;
-      // Save the result to file
-      saveMatchesToFile("data/matches.csv");
-    }
-    else if (stageChoice == 2)
-    {
-      // Process solo matches input
-      int matchID, winnerChoice;
-      cout << "Enter match ID to input result: ";
-      cin >> matchID;
-      if (matchID < 0 || matchID >= matchCount || matches[matchID].isPlayed)
+      cout << "\nEnter group number to input results (or 0 to exit): ";
+      int groupChoice;
+      cin >> groupChoice;
+
+      if (cin.fail())
       {
-        cout << "Invalid match ID or already played.\n";
-        return;
-      }
-      cout << "Who won? Enter 1 for " << players[matches[matchID].player1Index].name
-           << ", 2 for " << players[matches[matchID].player2Index].name << ": ";
-      cin >> winnerChoice;
-      if (winnerChoice == 1)
-        setMatchResult(matchID, matches[matchID].player1Index);
-      else if (winnerChoice == 2)
-        setMatchResult(matchID, matches[matchID].player2Index);
-      else
-      {
-        cout << "Invalid choice.\n";
-        return;
+        cin.clear();
+        cin.ignore(1000, '\n');
+        cout << "Invalid input. Try again.\n";
+        continue;
       }
 
-      // Get match duration
-      int durationInSeconds;
-      cout << "Enter match duration in seconds (max 1800): ";
-      cin >> durationInSeconds;
-      if (durationInSeconds < 0 || durationInSeconds > 1800)
+      if (groupChoice == 0)
+        break;
+
+      if (groupChoice < 1 || groupChoice > MAX_GROUPS || groupMatchQueues[groupChoice - 1].isEmpty())
       {
-        cout << "Invalid duration. It must be between 0 and 1800 seconds.\n";
-        return;
+        cout << "Invalid or empty group. Please choose again.\n";
+        continue;
       }
 
-      // Save the duration for the match
-      matches[matchID].durationInSeconds = durationInSeconds;
-      cout << "hello";
-      cout << matches[matchID].durationInSeconds;
-      // Save the result to file
-      saveMatchesToFile("data/matches.csv");
-    }
-    else
-    {
-      cout << "Invalid stage choice.\n";
-    }
-  }
-  else
-  {
-    // Not group stage, process solo matches only
-    int matchID, winnerChoice;
-    cout << "Enter match ID to input result: ";
-    cin >> matchID;
-    if (matchID < 0 || matchID >= matchCount || matches[matchID].isPlayed)
-    {
-      cout << "Invalid match ID or already played.\n";
-      return;
-    }
-    cout << "Who won? Enter 1 for " << players[matches[matchID].player1Index].name
-         << ", 2 for " << players[matches[matchID].player2Index].name << ": ";
-    cin >> winnerChoice;
-    if (winnerChoice == 1)
-      setMatchResult(matchID, matches[matchID].player1Index);
-    else if (winnerChoice == 2)
-      setMatchResult(matchID, matches[matchID].player2Index);
-    else
-    {
-      cout << "Invalid choice.\n";
-      return;
+      CircularQueue &q = groupMatchQueues[groupChoice - 1];
+
+      while (!q.isEmpty())
+      {
+        Match m;
+        q.dequeue(m);
+
+        cout << "\n"
+             << m.matchID << ": " << players[m.player1Index].name
+             << " vs " << players[m.player2Index].name << "\n";
+        cout << "Who won? Enter 1 or 2 (0 to cancel): ";
+        int winnerChoice;
+        cin >> winnerChoice;
+
+        if (winnerChoice == 0)
+          continue;
+        else if (winnerChoice == 1)
+          setMatchResult(m.matchIndex, m.player1Index, GROUP_STAGE);
+        else if (winnerChoice == 2)
+          setMatchResult(m.matchIndex, m.player2Index, GROUP_STAGE);
+        else
+        {
+          cout << "Invalid input. Skipping match.\n";
+          continue;
+        }
+
+        int duration;
+        cout << "Enter match duration in seconds (max 1800): ";
+        cin >> duration;
+        if (cin.fail() || duration <= 0 || duration > 1800)
+        {
+          cin.clear();
+          cin.ignore(1000, '\n');
+          cout << "Invalid duration. Using default 600s.\n";
+          duration = 600;
+        }
+        matches[m.matchIndex].durationInSeconds = duration;
+      }
     }
 
-    // Get match duration
-    int durationInSeconds;
-    cout << "Enter match duration in seconds (max 1800): ";
-    cin >> durationInSeconds;
-    if (durationInSeconds < 0 || durationInSeconds > 1800)
-    {
-      cout << "Invalid duration. It must be between 0 and 1800 seconds.\n";
-      return;
-    }
-
-    // Save the duration for the match
-    matches[matchID].durationInSeconds = durationInSeconds;
-
-    // Save the result to file
     saveMatchesToFile("data/matches.csv");
+    savePlayersToFile("data/players.csv");
   }
 }
 
@@ -1280,6 +1300,7 @@ int main()
   displayPlayers(players, playerCount);
 
   loadMatchesFromFile("data/matches.csv");
+  rebuildGroupQueuesFromMatches();
   loadTournamentStage("data/stage.txt"); // Load saved stage
 
   while (true)
