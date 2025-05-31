@@ -1,5 +1,5 @@
 P002,Alice,APU,2,active,3,3,1
-P003,Bob,APU,3,eliminated,0,0,0
+P003,Bob,APU,3,active,0,0,0
 P005,Dan,APU,5,eliminated,0,0,0
 P006,Eve,APU,6,eliminated,0,0,0
 P001,John,APU,10,active,3,1,1
@@ -13,4 +13,4 @@ P013,Linda,APU,30,eliminated,0,0,0
 P014,Mike,APU,32,eliminated,3,1,1
 P015,Nina,APU,35,eliminated,3,1,2
 P016,Owen,APU,40,eliminated,3,1,1
-P004,Carol,APU,42,eliminated,0,0,0
+P004,Carol,APU,42,active,0,0,0
