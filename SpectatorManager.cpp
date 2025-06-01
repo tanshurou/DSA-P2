@@ -65,17 +65,25 @@ bool SpectatorManager::addGeneralSpectator(const std::string& name) {
     return true;
 }
 
-bool SpectatorManager::assignStreamerSlot(int slot, const std::string& name, const std::string& matchID) {
+bool SpectatorManager::assignStreamerSlot(int slot, const std::string& name, const std::string& matchID, const std::map<std::string, std::pair<std::string, std::string>>& matchTimes) {
     if (slot < 0 || slot >= MAX_STREAMERS) {
         std::cout << "Invalid slot\n";
         return false;
     }
+
+    if (matchTimes.find(matchID) == matchTimes.end()) {
+        std::cout << "[ERROR] Invalid Match ID: " << matchID << " not found.\n";
+        return false;
+    }
+
     if (streamerSlots[slot] != "EMPTY") {
         std::cout << "Slot already taken\n";
         return false;
     }
+
     streamerSlots[slot] = name;
     streamerMatchIDs[slot] = matchID;
+    std::cout << "[SUCCESS] Streamer " << name << " assigned to match " << matchID << "\n";
     return true;
 }
 
@@ -93,62 +101,6 @@ void SpectatorManager::displayStreamerSlots() {
         if (!streamerMatchIDs[i].empty())
             std::cout << " (Match ID: " << streamerMatchIDs[i] << ")";
         std::cout << "\n";
-    }
-}
-
-void SpectatorManager::displayStreamerSchedule() {
-    std::map<std::string, std::pair<std::string, std::string>> matchTimes;
-
-    // Load match times from matches.csv
-    std::ifstream file("data/matches.csv");
-    if (file.is_open()) {
-        std::string line;
-        while (std::getline(file, line)) {
-            std::stringstream ss(line);
-            std::string matchID, stage, p1, p2, winner, status, round, time, streamerID, date;
-
-            std::getline(ss, matchID, ',');
-            std::getline(ss, stage, ',');
-            std::getline(ss, p1, ',');
-            std::getline(ss, p2, ',');
-            std::getline(ss, winner, ',');
-            std::getline(ss, status, ',');
-            std::getline(ss, round, ',');
-            std::getline(ss, time, ',');
-            std::getline(ss, streamerID, ',');
-            std::getline(ss, date, ',');
-
-            matchTimes[trim(matchID)] = {trim(time), trim(date)};
-        }
-        file.close();
-    }
-
-    // Sort streamer slots by match ID
-    int index[MAX_STREAMERS];
-    for (int i = 0; i < MAX_STREAMERS; ++i) index[i] = i;
-
-    for (int i = 0; i < MAX_STREAMERS - 1; ++i) {
-        for (int j = 0; j < MAX_STREAMERS - i - 1; ++j) {
-            if (streamerMatchIDs[index[j]] > streamerMatchIDs[index[j + 1]]) {
-                std::swap(index[j], index[j + 1]);
-            }
-        }
-    }
-
-    std::cout << "[STREAMER SCHEDULE BY MATCH ORDER]\n";
-    for (int i = 0; i < MAX_STREAMERS; ++i) {
-        int idx = index[i];
-        const std::string& matchID = trim(streamerMatchIDs[idx]);
-        if (streamerSlots[idx] != "EMPTY") {
-            auto it = matchTimes.find(matchID);
-            if (it != matchTimes.end()) {
-                const std::string& time = it->second.first;
-                const std::string& date = it->second.second;
-                std::cout << "Match " << matchID << " (" << date << " " << time << "): " << streamerSlots[idx] << "\n";
-            } else {
-                std::cout << "Match " << matchID << " (Unknown time): " << streamerSlots[idx] << "\n";
-            }
-        }
     }
 }
 
@@ -179,68 +131,6 @@ void SpectatorManager::displayQueues() {
             i = (i + 1) % MAX_GENERAL;
             count++;
         }
-    }
-}
-
-void SpectatorManager::displayVIPQueue() {
-    std::cout << "VIP Queue (Capacity: " << MAX_VIP << "):\n";
-    if (vipFront == -1) {
-        std::cout << "[INFO] VIP Queue is empty.\n";
-        return;
-    }
-
-    int i = vipFront, count = 1;
-    while (true) {
-        std::cout << "Slot " << count++ << ": " << vipQueue[i] << "\n";
-        if (i == vipRear) break;
-        i = (i + 1) % MAX_VIP;
-    }
-}
-
-void SpectatorManager::displayGeneralQueue() {
-    std::cout << "General Queue (Capacity: " << MAX_GENERAL << "):\n";
-    if (genFront == -1) {
-        std::cout << "[INFO] General Queue is empty.\n";
-        return;
-    }
-
-    int i = genFront, count = 1;
-    while (true) {
-        std::cout << "Slot " << count++ << ": " << generalQueue[i] << "\n";
-        if (i == genRear) break;
-        i = (i + 1) % MAX_GENERAL;
-    }
-}
-
-void SpectatorManager::displayNextSpectators() {
-    std::cout << "\n[Next in VIP Queue]:\n";
-    int count = 0;
-    int i = vipFront;
-
-    while (vipFront != -1 && count < 3) {
-        std::cout << "Slot " << (count + 1) << ": " << vipQueue[i] << "\n";
-        if (i == vipRear) break;
-        i = (i + 1) % MAX_VIP;
-        count++;
-    }
-
-    if (vipFront == -1 || count == 0) {
-        std::cout << "[INFO] VIP Queue is empty.\n";
-    }
-
-    std::cout << "\n[Next in General Queue]:\n";
-    count = 0;
-    i = genFront;
-
-    while (genFront != -1 && count < 3) {
-        std::cout << "Slot " << (count + 1) << ": " << generalQueue[i] << "\n";
-        if (i == genRear) break;
-        i = (i + 1) % MAX_GENERAL;
-        count++;
-    }
-
-    if (genFront == -1 || count == 0) {
-        std::cout << "[INFO] General Queue is empty.\n";
     }
 }
 
@@ -320,7 +210,6 @@ bool SpectatorManager::removeSpectatorFromGeneral() {
     return true;
 }
 
-
 void SpectatorManager::saveToFile(const std::string& filename) {
     std::ofstream file(filename);
     if (!file.is_open()) {
@@ -385,7 +274,6 @@ void SpectatorManager::loadFromFile(const std::string& filename) {
     }
     file.close();
 
-    // Manual bubble sort for VIP names
     for (int i = 0; i < vipCount - 1; ++i) {
         for (int j = 0; j < vipCount - i - 1; ++j) {
             if (vipNames[j] > vipNames[j + 1]) {
@@ -394,7 +282,6 @@ void SpectatorManager::loadFromFile(const std::string& filename) {
         }
     }
 
-    // Manual bubble sort for General names
     for (int i = 0; i < genCount - 1; ++i) {
         for (int j = 0; j < genCount - i - 1; ++j) {
             if (genNames[j] > genNames[j + 1]) {
@@ -403,14 +290,142 @@ void SpectatorManager::loadFromFile(const std::string& filename) {
         }
     }
 
-    // Add sorted names to queues
     for (int i = 0; i < vipCount; ++i) addVIP(vipNames[i]);
     for (int i = 0; i < genCount; ++i) addGeneralSpectator(genNames[i]);
     std::cout << "[INFO] Spectator data loaded from '" << filename << "'\n";
 }
 
+void SpectatorManager::displayVIPQueue() {
+    std::cout << "VIP Queue (Capacity: " << MAX_VIP << "):\n";
+    if (vipFront == -1) {
+        std::cout << "[INFO] VIP Queue is empty.\n";
+        return;
+    }
+
+    int i = vipFront, count = 1;
+    while (true) {
+        std::cout << "Slot " << count++ << ": " << vipQueue[i] << "\n";
+        if (i == vipRear) break;
+        i = (i + 1) % MAX_VIP;
+    }
+}
+
+void SpectatorManager::displayGeneralQueue() {
+    std::cout << "General Queue (Capacity: " << MAX_GENERAL << "):\n";
+    if (genFront == -1) {
+        std::cout << "[INFO] General Queue is empty.\n";
+        return;
+    }
+
+    int i = genFront, count = 1;
+    while (true) {
+        std::cout << "Slot " << count++ << ": " << generalQueue[i] << "\n";
+        if (i == genRear) break;
+        i = (i + 1) % MAX_GENERAL;
+    }
+}
+
+void SpectatorManager::displayNextSpectators() {
+    std::cout << "\n[Next in VIP Queue]:\n";
+    int count = 0;
+    int i = vipFront;
+
+    while (vipFront != -1 && count < 3) {
+        std::cout << "Slot " << (count + 1) << ": " << vipQueue[i] << "\n";
+        if (i == vipRear) break;
+        i = (i + 1) % MAX_VIP;
+        count++;
+    }
+
+    if (vipFront == -1 || count == 0) {
+        std::cout << "[INFO] VIP Queue is empty.\n";
+    }
+
+    std::cout << "\n[Next in General Queue]:\n";
+    count = 0;
+    i = genFront;
+
+    while (genFront != -1 && count < 3) {
+        std::cout << "Slot " << (count + 1) << ": " << generalQueue[i] << "\n";
+        if (i == genRear) break;
+        i = (i + 1) % MAX_GENERAL;
+        count++;
+    }
+
+    if (genFront == -1 || count == 0) {
+        std::cout << "[INFO] General Queue is empty.\n";
+    }
+}
+
+void SpectatorManager::displayStreamerSchedule() {
+    std::map<std::string, std::pair<std::string, std::string>> matchTimes;
+
+    // Load match times from matches.csv
+    std::ifstream file("data/matches.csv");
+    if (file.is_open()) {
+        std::string line;
+        while (std::getline(file, line)) {
+            std::stringstream ss(line);
+            std::string matchID, stage, p1, p2, winner, status, round, time, streamerID, date;
+            std::getline(ss, matchID, ',');
+            std::getline(ss, stage, ',');
+            std::getline(ss, p1, ',');
+            std::getline(ss, p2, ',');
+            std::getline(ss, winner, ',');
+            std::getline(ss, status, ',');
+            std::getline(ss, round, ',');
+            std::getline(ss, time, ',');
+            std::getline(ss, streamerID, ',');
+            std::getline(ss, date, ',');
+
+            matchTimes[trim(matchID)] = {trim(time), trim(date)};
+        }
+        file.close();
+    }
+
+    std::cout << "[STREAMER SCHEDULE]\n";
+    for (int i = 0; i < MAX_STREAMERS; ++i) {
+        if (streamerSlots[i] != "EMPTY") {
+            const std::string& matchID = streamerMatchIDs[i];
+            auto it = matchTimes.find(matchID);
+            if (it != matchTimes.end()) {
+                const std::string& time = it->second.first;
+                const std::string& date = it->second.second;
+                std::cout << "Match " << matchID << " (" << date << " " << time << "): " << streamerSlots[i] << "\n";
+            } else {
+                std::cout << "Match " << matchID << " (Unknown time): " << streamerSlots[i] << "\n";
+            }
+        }
+    }
+}
+
 void SpectatorManager::run() {
     loadFromFile("data/spectators.csv");
+
+    std::map<std::string, std::pair<std::string, std::string>> matchTimes;
+
+    // Load match times from matches.csv
+    std::ifstream file("data/matches.csv");
+    if (file.is_open()) {
+        std::string line;
+        while (std::getline(file, line)) {
+            std::stringstream ss(line);
+            std::string matchID, stage, p1, p2, winner, status, round, time, streamerID, date;
+            std::getline(ss, matchID, ',');
+            std::getline(ss, stage, ',');
+            std::getline(ss, p1, ',');
+            std::getline(ss, p2, ',');
+            std::getline(ss, winner, ',');
+            std::getline(ss, status, ',');
+            std::getline(ss, round, ',');
+            std::getline(ss, time, ',');
+            std::getline(ss, streamerID, ',');
+            std::getline(ss, date, ',');
+
+            matchTimes[trim(matchID)] = {trim(time), trim(date)};
+        }
+        file.close();
+    }
 
     int mainChoice = 0;
     do {
@@ -534,7 +549,7 @@ void SpectatorManager::run() {
                             std::cout << "Enter slot number (1 to " << MAX_STREAMERS << "): ";
                             std::cin >> slot;
                             std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-                            assignStreamerSlot(slot - 1, name, matchID);
+                            assignStreamerSlot(slot - 1, name, matchID, matchTimes); // Pass matchTimes
                             break;
                         }
                         case 2: {
