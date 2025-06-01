@@ -48,6 +48,7 @@ struct Match
   bool isPlayed;
   float durationInSeconds;
   int date;
+  int parentMatchIndex; // -1 if final
 };
 
 Player players[MAX_PLAYERS];
@@ -106,6 +107,68 @@ struct CircularQueue
 CircularQueue groupMatchQueues[MAX_GROUPS];
 
 // Utilities function
+bool continueKnockout()
+{
+  int activeCount = 0;
+  cout << "\n[DEBUG] Checking active players in advancingPlayers:\n";
+
+  for (int i = 0; i < advancingCount; i++)
+  {
+    cout << "Player " << i << " (" << advancingPlayers[i].name << ") - Status: "
+         << advancingPlayers[i].status << "\n";
+
+    if (strcmp(advancingPlayers[i].status, "active") == 0)
+    {
+      activeCount++;
+    }
+  }
+
+  cout << "[DEBUG] Total active players: " << activeCount << "\n";
+
+  if (activeCount > 1)
+  {
+    cout << "[DEBUG] Continue knockout: TRUE\n";
+    return true;
+  }
+  else
+  {
+    cout << "[DEBUG] Continue knockout: FALSE\n";
+    return false;
+  }
+}
+
+const char *
+getKnockoutStageName(int numPlayers)
+{
+  switch (numPlayers)
+  {
+  case 2:
+    return "Final";
+  case 4:
+    return "Semifinals";
+  case 8:
+    return "Quarterfinals";
+  case 16:
+    return "Round of 16";
+  case 32:
+    return "Round of 32";
+  default:
+    return "Knockout Round";
+  }
+}
+
+int findPlayerIndexByID(const char *playerID)
+{
+  for (int i = 0; i < playerCount; i++)
+  {
+    if (strcmp(players[i].id, playerID) == 0)
+    {
+      return i;
+    }
+  }
+  return -1; // Not found
+}
+
 void rebuildGroupQueuesFromMatches()
 {
   for (int g = 0; g < MAX_GROUPS; g++)
@@ -273,17 +336,17 @@ void loadTournamentStage(const char *filename)
   fclose(file);
 }
 
-void sortPlayersByRank()
+void sortPlayersByRank(Player arr[], int size)
 {
-  for (int i = 0; i < playerCount - 1; i++)
+  for (int i = 0; i < size - 1; i++)
   {
-    for (int j = 0; j < playerCount - i - 1; j++)
+    for (int j = 0; j < size - i - 1; j++)
     {
-      if (players[j].rank > players[j + 1].rank)
+      if (arr[j].rank > arr[j + 1].rank)
       {
-        Player temp = players[j];
-        players[j] = players[j + 1];
-        players[j + 1] = temp;
+        Player temp = arr[j];
+        arr[j] = arr[j + 1];
+        arr[j + 1] = temp;
       }
     }
   }
@@ -346,6 +409,7 @@ void loadMatchesFromFile(const char *filename)
     else
       matches[matchCount].stage = TOURNAMENT_OVER;
 
+    // Player 1
     token = strtok(NULL, ",");
     if (!token)
       continue;
@@ -361,6 +425,7 @@ void loadMatchesFromFile(const char *filename)
     if (i == playerCount)
       matches[matchCount].player1Index = -1;
 
+    // Player 2
     token = strtok(NULL, ",");
     if (!token)
       continue;
@@ -375,6 +440,7 @@ void loadMatchesFromFile(const char *filename)
     if (i == playerCount)
       matches[matchCount].player2Index = -1;
 
+    // Winner
     token = strtok(NULL, ",");
     if (!token)
       continue;
@@ -394,6 +460,7 @@ void loadMatchesFromFile(const char *filename)
         matches[matchCount].winnerIndex = -1;
     }
 
+    // Match status
     token = strtok(NULL, ",");
     if (!token)
       continue;
@@ -409,19 +476,23 @@ void loadMatchesFromFile(const char *filename)
       continue;
     matches[matchCount].startTime = atoi(token);
 
-    // Read the new fields
     token = strtok(NULL, ",");
     if (!token)
       continue;
-    matches[matchCount].durationInSeconds = atoi(token); // Store duration in seconds
+    matches[matchCount].durationInSeconds = atoi(token);
 
     token = strtok(NULL, ",");
     if (!token)
       continue;
-    matches[matchCount].date = atoi(token); // Store date as an integer in YYYYMMDD format
+    matches[matchCount].date = atoi(token);
+
+    token = strtok(NULL, ",");
+    if (!token)
+      matches[matchCount].parentMatchIndex = -1; // default if not found
+    else
+      matches[matchCount].parentMatchIndex = atoi(token);
 
     matches[matchCount].isPlayed = (strcmp(matches[matchCount].status, "Completed") == 0);
-
     matches[matchCount].matchIndex = matchCount;
 
     matchCount++;
@@ -444,7 +515,6 @@ void saveMatchesToFile(const char *filename)
   {
     fprintf(file, "%s,", matches[i].matchID);
 
-    // Write the match stage as string
     const char *stageStr = "";
     switch (matches[i].stage)
     {
@@ -463,30 +533,31 @@ void saveMatchesToFile(const char *filename)
     }
     fprintf(file, "%s,", stageStr);
 
-    // Write player 1 and player 2 IDs
-    fprintf(file, "%s,", players[matches[i].player1Index].id);
-    fprintf(file, "%s,", players[matches[i].player2Index].id);
+    // Write player1 and player2 ID or blank
+    if (matches[i].player1Index >= 0)
+      fprintf(file, "%s,", players[matches[i].player1Index].id);
+    else
+      fprintf(file, ",");
 
-    // Write winner (if any) or -1 if undecided
+    if (matches[i].player2Index >= 0)
+      fprintf(file, "%s,", players[matches[i].player2Index].id);
+    else
+      fprintf(file, ",");
+
+    // Write winner ID or -1
     if (matches[i].winnerIndex == -1)
       fprintf(file, "-1,");
     else
       fprintf(file, "%s,", players[matches[i].winnerIndex].id);
 
-    // Write the match status
     fprintf(file, "%s,", matches[i].status);
-
-    // Write group ID
     fprintf(file, "%d,", matches[i].groupID);
-
-    // Write start time
     fprintf(file, "%d,", matches[i].startTime);
+    fprintf(file, "%d,", matches[i].durationInSeconds);
+    fprintf(file, "%d,", matches[i].date);
 
-    // Write duration in seconds
-    fprintf(file, "%d,", static_cast<int>(matches[i].durationInSeconds));
-
-    // Write match date in YYYYMMDD format
-    fprintf(file, "%d\n", matches[i].date);
+    // Write parentMatchIndex
+    fprintf(file, "%d\n", matches[i].parentMatchIndex);
   }
 
   fclose(file);
@@ -546,17 +617,32 @@ void setMatchResult(int matchIndex, int winnerIndex, TournamentStage stage)
   strcpy(matches[matchIndex].status, "Completed");
   logResult(matches[matchIndex].matchID, winnerIndex);
 
-  int loserIndex = (matches[matchIndex].player1Index == winnerIndex) ? matches[matchIndex].player2Index : matches[matchIndex].player1Index;
+  int loserIndex = (matches[matchIndex].player1Index == winnerIndex)
+                       ? matches[matchIndex].player2Index
+                       : matches[matchIndex].player1Index;
+
+  // Eliminate loser from global players list if not group stage
   if (strcmp(players[loserIndex].status, "eliminated") != 0 && stage != GROUP_STAGE)
   {
     strcpy(players[loserIndex].status, "eliminated");
   }
 
+  // Group Stage: update points and match count
   if (stage == GROUP_STAGE)
   {
     players[winnerIndex].points += 1;
     players[winnerIndex].matchesPlayed += 1;
     players[loserIndex].matchesPlayed += 1;
+  }
+
+  // Knockout Stage: eliminate loser from advancingPlayers as well
+  if (stage == KNOCKOUT_STAGE && matches[matchIndex].parentMatchIndex != -1)
+  {
+    int parent = matches[matchIndex].parentMatchIndex;
+    if (matches[parent].player1Index == -1)
+      matches[parent].player1Index = winnerIndex;
+    else
+      matches[parent].player2Index = winnerIndex;
   }
 }
 
@@ -620,6 +706,28 @@ int getDate()
   return date; // return the valid date
 }
 
+int getTime()
+{
+  int time;
+  while (true)
+  {
+    cout << "Enter start time in HHMM format (e.g., 1430 for 2:30 PM): ";
+    cin >> time;
+
+    int hour = time / 100;
+    int minute = time % 100;
+
+    if (hour >= 0 && hour <= 23 && minute >= 0 && minute < 60)
+    {
+      return hour * 100 + minute;
+    }
+    else
+    {
+      cout << "Invalid time. Please enter a valid 24-hour time.\n";
+    }
+  }
+}
+
 // --- The new simple qualifier matches generator ---
 void generateQualifierMatches()
 {
@@ -628,6 +736,7 @@ void generateQualifierMatches()
   int left = 0;
   int right = playerCount - 1;
   int date = getDate();
+  int startTime = getTime();
 
   while (left < right)
   {
@@ -641,20 +750,15 @@ void generateQualifierMatches()
     strcpy(matches[matchCount].status, "Scheduled");
     matches[matchCount].groupID = 0;
 
-    int startTime = 1400;
+    int hour = startTime / 100;
+    int min = startTime % 100 + 30;
+    if (min >= 60)
+    {
+      hour += 1;
+      min -= 60;
+    }
+    startTime = hour * 100 + min;
 
-    if (matchCount * 30 == 60)
-    {
-      startTime += 100;
-    }
-    else if (matchCount * 30 % 60 == 0)
-    {
-      startTime += matchCount * 30;
-    }
-    else
-    {
-      startTime += ((matchCount - 1) / 2 * 100) + 30;
-    }
     matches[matchCount].startTime = startTime;
     matches[matchCount].isPlayed = false;
     matches[matchCount].durationInSeconds = 0; // Initialize duration
@@ -751,6 +855,30 @@ void collectWinners(TournamentStage stage)
     displayPlayers(advancingPlayers, advancingCount);
     savePlayersToFile("data/players.csv");
   }
+
+  else if (stage == KNOCKOUT_STAGE)
+  {
+    for (int i = 0; i < playerCount; i++)
+    {
+      if (strcmp(players[i].status, "active") == 0)
+      {
+        advancingPlayers[advancingCount] = players[i];
+        strcpy(advancingPlayers[advancingCount].status, "active"); // reset status
+        advancingCount++;
+      }
+      else
+      {
+        cout << players[i].name << " is eliminated "
+             << players[i].status << endl;
+      }
+    }
+
+    // Keep sorted by rank for seeding
+    sortPlayersByRank(advancingPlayers, advancingCount);
+
+    cout << "\nPlayers Advancing: \n";
+    displayPlayers(advancingPlayers, advancingCount);
+  }
 }
 
 void assignPlayersToGroups()
@@ -770,26 +898,67 @@ void assignPlayersToGroups()
   displayMatchBrackets();
 }
 
-// void generateKnockoutMatches()
-// {
-//   matchCount = 0;
-//   int n = advancingCount;
-//   for (int i = 0; i < n / 2; i++)
-//   {
-//     matches[matchCount].matchIndex = matchCount;
-//     sprintf(matches[matchCount].matchID, "M%03d", matchCount + 1);
-//     matches[matchCount].stage = KNOCKOUT_STAGE;
-//     matches[matchCount].player1Index = advancingPlayers[i];
-//     matches[matchCount].player2Index = advancingPlayers[n - 1 - i];
-//     matches[matchCount].winnerIndex = -1;
-//     strcpy(matches[matchCount].status, "Scheduled");
-//     matches[matchCount].groupID = 0;
-//     matches[matchCount].startTime = 1800 + i * 30;
-//     matches[matchCount].isPlayed = false;
-//     matchCount++;
-//   }
-//   saveMatchesToFile("data/matches.csv");
-// }
+void generateFullKnockoutBracket()
+{
+  loadMatchesFromFile("data/matches.csv");
+
+  int date = getDate();
+  int startTime = getTime();
+  int matchIDCounter = 1;
+
+  // Sort for seeding
+  sortPlayersByRank(advancingPlayers, advancingCount);
+
+  int totalMatches = advancingCount - 1;
+  int firstRoundMatches = advancingCount / 2;
+  int startIndex = matchCount;
+
+  for (int i = 0; i < totalMatches; i++)
+  {
+    Match m;
+    m.matchIndex = matchCount;
+    sprintf(m.matchID, "M%03d", matchIDCounter++);
+    m.stage = KNOCKOUT_STAGE;
+    m.date = date;
+    m.winnerIndex = -1;
+    m.isPlayed = false;
+    m.durationInSeconds = 0;
+    m.groupID = 0;
+    strcpy(m.status, "Scheduled");
+
+    // Initial players only in round 1
+    if (i < firstRoundMatches)
+    {
+      m.player1Index = findPlayerIndexByID(advancingPlayers[i].id);
+      m.player2Index = findPlayerIndexByID(advancingPlayers[advancingCount - 1 - i].id);
+    }
+    else
+    {
+      m.player1Index = -1;
+      m.player2Index = -1;
+    }
+
+    // Parent match (for next round)
+    int parentIndex = startIndex + firstRoundMatches + (i / 2);
+    if (parentIndex < startIndex + totalMatches)
+      m.parentMatchIndex = parentIndex;
+    else
+      m.parentMatchIndex = -1;
+
+    // Start time increment (optional)
+    int hour = startTime / 100;
+    int min = startTime % 100;
+    min += (i * 30);
+    hour += min / 60;
+    min %= 60;
+    m.startTime = hour * 100 + min;
+
+    matches[matchCount++] = m;
+  }
+
+  saveMatchesToFile("data/matches.csv");
+  cout << "\n✅ Full knockout bracket generated.\n";
+}
 
 void generateRoundRobinMatches()
 {
@@ -891,16 +1060,12 @@ bool allMatchesPlayedInStage(TournamentStage stage)
   return true;
 }
 
-#include <iomanip> // For std::setw
-
-#include <iomanip> // For std::setw
-
-#include <iostream>
-#include <iomanip> // For std::setw, std::fixed, std::setprecision
-#include <cmath>   // For floor()
-
 void printMatches(TournamentStage stage)
 {
+  if (stage == KNOCKOUT_STAGE)
+  {
+    cout << "\n--- " << getKnockoutStageName(advancingCount) << " ---\n";
+  }
   // Print the header
   cout << left << setw(12) << "Match ID"
        << setw(10) << "Group"
@@ -1043,12 +1208,10 @@ void generateMatches()
     if (allMatchesPlayedInStage(GROUP_STAGE))
     {
       cout << "All group matches played.\n";
-      // Here you should calculate group rankings and advance players
-      // For simplicity, directly advance all for knockout
-      collectWinners(GROUP_STAGE); // You’ll need to implement collecting winners based on group points
-      // currentStage = KNOCKOUT_STAGE;
-      // generateKnockoutMatches();
-      // printMatches(KNOCKOUT_STAGE);
+      collectWinners(GROUP_STAGE);
+      currentStage = KNOCKOUT_STAGE;
+      generateFullKnockoutBracket();
+      cout << "Knockout Matches generated.";
     }
     else
     {
@@ -1057,14 +1220,14 @@ void generateMatches()
   }
   else if (currentStage == KNOCKOUT_STAGE)
   {
-    if (allMatchesPlayedInStage(KNOCKOUT_STAGE))
+    if (!continueKnockout())
     {
       currentStage = TOURNAMENT_OVER;
       cout << "Tournament finished! Congratulations to the winner!\n";
     }
     else
     {
-      cout << "Please finish all knockout matches first.\n";
+      cout << "Please complete remaining knockout matches.\n";
     }
   }
 }
@@ -1141,8 +1304,8 @@ bool getWinnerDone(int matchIndex)
       cout << "here" << matches[matchIndex].durationInSeconds << endl;
     }
   }
-  saveMatchesToFile("date/matches.csv");
-  savePlayersToFile("date/players.csv");
+  saveMatchesToFile("data/matches.csv");
+  savePlayersToFile("data/players.csv");
   return false;
 }
 
@@ -1157,6 +1320,7 @@ void inputMatchResult()
       inputtingMatch++;
       printMatches(QUALIFIERS);
       done = getWinnerDone(inputtingMatch);
+      collectWinners(KNOCKOUT_STAGE);
     }
 
     if (allMatchesPlayedInStage(QUALIFIERS))
@@ -1164,6 +1328,7 @@ void inputMatchResult()
       cout << "All matches have been completed. Please move on to the next stage.\n";
     }
   }
+
   else if (currentStage == GROUP_STAGE)
   {
     while (true)
@@ -1250,6 +1415,79 @@ void inputMatchResult()
     saveMatchesToFile("data/matches.csv");
     savePlayersToFile("data/players.csv");
   }
+
+  else if (currentStage == KNOCKOUT_STAGE)
+  {
+    bool done = false;
+    int inputtingMatch = -1;
+
+    printMatches(KNOCKOUT_STAGE);
+
+    while (!done && !allMatchesPlayedInStage(KNOCKOUT_STAGE))
+    {
+      inputtingMatch++;
+
+      // Guard: Skip if match not ready
+      if (matches[inputtingMatch].player1Index == -1 || matches[inputtingMatch].player2Index == -1)
+      {
+        cout << "\n⏭️  Match " << matches[inputtingMatch].matchID << " is not ready (players not assigned).\n";
+        continue;
+      }
+
+      // Skip if already completed
+      if (matches[inputtingMatch].isPlayed)
+      {
+        continue;
+      }
+
+      // Prompt user to input result
+      done = getWinnerDone(inputtingMatch);
+
+      // Auto-assign winner to parent match
+      int winnerIndex = matches[inputtingMatch].winnerIndex;
+      int parent = matches[inputtingMatch].parentMatchIndex;
+
+      if (parent >= 0 && winnerIndex != -1)
+      {
+        if (matches[parent].player1Index == -1)
+        {
+          matches[parent].player1Index = winnerIndex;
+          cout << "🏁 Winner assigned to player1 of match " << matches[parent].matchID << "\n";
+        }
+        else if (matches[parent].player2Index == -1)
+        {
+          matches[parent].player2Index = winnerIndex;
+          cout << "🏁 Winner assigned to player2 of match " << matches[parent].matchID << "\n";
+        }
+        else
+        {
+          cout << "⚠️ Warning: Parent match " << matches[parent].matchID << " already has both players assigned.\n";
+        }
+      }
+    }
+
+    // After all matches are played
+    if (allMatchesPlayedInStage(KNOCKOUT_STAGE))
+    {
+      collectWinners(KNOCKOUT_STAGE);
+
+      if (continueKnockout())
+      {
+        cout << "\n✅ All " << getKnockoutStageName(advancingCount) << " matches completed.\n";
+        cout << "➡️  Please generate the next round of knockout matches from the menu.\n";
+      }
+      else
+      {
+        currentStage = TOURNAMENT_OVER;
+        cout << "\n-----------------------------------------------------------------------------" << endl;
+        cout << "\nThe tournament is over! Champion: " << advancingPlayers[0].name << " 🏆\n";
+        cout << "\n-----------------------------------------------------------------------------" << endl;
+      }
+    }
+
+    saveMatchesToFile("data/matches.csv");
+    savePlayersToFile("data/players.csv");
+  }
 }
 
 void updateCurrentStage()
@@ -1296,7 +1534,7 @@ void updateCurrentStage()
 int main()
 {
   loadPlayersFromFile("data/players.csv");
-  sortPlayersByRank();
+  sortPlayersByRank(players, playerCount);
   displayPlayers(players, playerCount);
 
   loadMatchesFromFile("data/matches.csv");
