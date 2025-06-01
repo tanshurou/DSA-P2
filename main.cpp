@@ -1,10 +1,8 @@
 // main.cpp
 // Main program for Asia Pacific University Esports Championship Management System
-
 #include <iostream>
 #include <string>
 #include <limits>
-
 #include "MatchScheduler.hpp"      // Task 1
 #include "PlayerRegistration.hpp"  // Task 2
 #include "SpectatorManager.hpp"    // Task 3
@@ -24,7 +22,7 @@ int main()
     // Initialize the components
     MatchScheduler   matchScheduler;
     PlayerRegistration playerReg;
-    SpectatorManager specManager;
+    SpectatorManager specManager;  // Added your SpectatorManager here
 
     // (No dedicated resultLogger instance needed here; runResultLogger will
     // create its own internally when slot 4 is chosen.)
@@ -64,7 +62,7 @@ int main()
             break;
 
         case 3:
-            handleSpectatorManagement(specManager);
+            handleSpectatorManagement(specManager);  // Integrated SpectatorManager here
             break;
 
         case 4:
@@ -317,4 +315,3 @@ void handleSpectatorManagement(SpectatorManager &specManager)
 }
 
 // (No separate handleResultLogging function is needed, since main() calls runResultLogger directly.)
-

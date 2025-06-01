@@ -28,15 +28,19 @@ public:
     void displayNextSpectators();
     void displayVIPQueue();        
     void displayGeneralQueue();           
+    void displayQueues();
+
+    // Search spectator by name
+    bool searchSpectator(const std::string& name);
+
+    // Clear all queues
+    void clearAllQueues();
 
     // Streamer operations
     bool assignStreamerSlot(int slot, const std::string& name, const std::string& matchID);
     bool removeStreamerSlot(int slot);
     void displayStreamerSlots();
     void displayStreamerSchedule();
-
-    // Display operations
-    void displayQueues();
 
     // File operations
     void saveToFile(const std::string& filename);
