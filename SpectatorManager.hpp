@@ -3,16 +3,19 @@
 
 #include <string>
 #include <map>
+#include <iostream>
 
 class SpectatorManager {
 private:
     static const int MAX_VIP = 10;
     static const int MAX_GENERAL = 20;
     static const int MAX_STREAMERS = 5;
+
     std::string vipQueue[MAX_VIP];
     std::string generalQueue[MAX_GENERAL];
     std::string streamerSlots[MAX_STREAMERS];
     std::string streamerMatchIDs[MAX_STREAMERS];
+
     int vipFront, vipRear;
     int genFront, genRear;
 
