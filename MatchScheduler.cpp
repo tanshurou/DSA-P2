@@ -22,7 +22,7 @@ enum TournamentStage
   TOURNAMENT_OVER
 };
 
-struct Player
+struct Participant
 {
   char id[10];
   char name[50];
@@ -51,7 +51,7 @@ struct Match
   int parentMatchIndex; // -1 if final
 };
 
-Player players[MAX_PLAYERS];
+Participant players[MAX_PLAYERS];
 int playerCount = 0;
 
 Match matches[MAX_MATCHES];
@@ -59,7 +59,7 @@ int matchCount = 0;
 
 TournamentStage currentStage = QUALIFIERS;
 
-Player advancingPlayers[MAX_PLAYERS];
+Participant advancingPlayers[MAX_PLAYERS];
 int advancingCount = 0;
 
 const int GROUP_SIZE = 4;
@@ -336,7 +336,7 @@ void loadTournamentStage(const char *filename)
   fclose(file);
 }
 
-void sortPlayersByRank(Player arr[], int size)
+void sortPlayersByRank(Participant arr[], int size)
 {
   for (int i = 0; i < size - 1; i++)
   {
@@ -344,7 +344,7 @@ void sortPlayersByRank(Player arr[], int size)
     {
       if (arr[j].rank > arr[j + 1].rank)
       {
-        Player temp = arr[j];
+        Participant temp = arr[j];
         arr[j] = arr[j + 1];
         arr[j + 1] = temp;
       }
@@ -352,7 +352,7 @@ void sortPlayersByRank(Player arr[], int size)
   }
 }
 
-void displayPlayers(Player *players, int playerCount)
+void displayPlayers(Participant *players, int playerCount)
 {
   for (int i = 0; i < playerCount; i++)
   {
@@ -564,7 +564,7 @@ void saveMatchesToFile(const char *filename)
   printf("Matches saved to %s\n", filename);
 }
 
-void shufflePlayers(Player *players, int playerCount)
+void shufflePlayers(Participant *players, int playerCount)
 {
   srand(time(0)); // Use current time as the seed for randomness
 
@@ -802,7 +802,7 @@ void collectWinners(TournamentStage stage)
   {
     for (int g = 1; g <= MAX_GROUPS; g++)
     {
-      Player groupPlayers[GROUP_SIZE];
+      Participant groupPlayers[GROUP_SIZE];
       int indices[GROUP_SIZE]; // Store their original indices in the global player array
       int count = 0;
 
@@ -826,7 +826,7 @@ void collectWinners(TournamentStage stage)
               (groupPlayers[j].points == groupPlayers[i].points && groupPlayers[j].rank < groupPlayers[i].rank))
           {
             // Swap both player and index
-            Player tempP = groupPlayers[i];
+            Participant tempP = groupPlayers[i];
             groupPlayers[i] = groupPlayers[j];
             groupPlayers[j] = tempP;
 
@@ -1531,7 +1531,7 @@ void updateCurrentStage()
   }
 }
 
-int main()
+int runTournamentManager()
 {
   loadPlayersFromFile("data/players.csv");
   sortPlayersByRank(players, playerCount);
