@@ -8,49 +8,97 @@
 
 using namespace std;
 
+void displayMenu() {
+    cout << "\n========== Tournament Registration System ==========\n";
+    cout << "1. Display check-in queue\n";
+    cout << "2. Player check-in (existing)\n";
+    cout << "3. Withdraw player from tournament\n";
+    cout << "4. Process next player in queue\n";
+    cout << "5. Display ready matches\n";
+    cout << "0. Exit program\n";
+    cout << "========================================================\n";
+    cout << "Enter your choice: ";
+}
+
+bool equalsIgnoreCase(const char* a, const char* b) {
+    while (*a && *b) {
+        if (tolower(*a) != tolower(*b)) return false;
+        a++;
+        b++;
+    }
+    return *a == *b;
+}
+
+void PlayerRegistration::setPlayerPriority(const char* playerID, char priorityType) {
+    for (int i = 0; i < totalPlayers; i++) {
+        if (equalsIgnoreCase(players[i].playerID, playerID)) {
+            players[i].isEarlyBird = (priorityType == 'E' || priorityType == 'e');
+            players[i].isWildcard = (priorityType == 'W' || priorityType == 'w');
+            return;
+        }
+    }
+}
+
 int main() {
     PlayerRegistration reg;
+    string playerID;
+    int choice;
 
-    // Load players from CSV
+    // Preload players from file (since option removed)
     reg.loadPlayers("data/players.csv");
 
-    // Validate player count (must be at least 8 and divisible by 4)
+    // Optional: ensure valid data before proceeding
     if (!reg.validatePlayerCount()) {
         return 1;
     }
 
-    cout << "\n--- All Registered Players ---\n";
-    reg.displayAllPlayers();
+    do {
+        displayMenu();
+        cin >> choice;
+        cin.ignore();
 
-    // Simulate some check-ins
-    cout << "\n--- Player Check-Ins ---\n";
-    reg.checkInPlayer("P002");  // assume early-bird
-    reg.checkInPlayer("P003");  // assume wildcard
-    reg.checkInPlayer("P005");  // regular
-    reg.checkInPlayer("P006");
-    reg.checkInPlayer("P001");
+        switch (choice) {
+            case 1: {
+                reg.displayCheckInQueue();
+                break;
+            }
+            case 2: {
+                cout << "Enter Player ID to check in: ";
+                getline(cin, playerID);
 
-    // Display current queue
-    cout << "\n--- Current Check-In Queue ---\n";
-    reg.displayCheckInQueue();
+                char priority;
+                cout << "Is this player an Early-Bird (E), Wildcard (W), or Regular (R)? ";
+                cin >> priority;
+                cin.ignore();
 
-    // Process one check-in (simulate queue advancement)
-    cout << "\n--- Processing One Check-In ---\n";
-    reg.processCheckInQueue();
+                reg.setPlayerPriority(playerID.c_str(), priority);
 
-    // Show queue after processing
-    cout << "\n--- Queue After Processing ---\n";
-    reg.displayCheckInQueue();
+                reg.checkInPlayer(playerID.c_str());
+                break;
+            }
+            case 3: {
+                cout << "Enter Player ID to withdraw: ";
+                getline(cin, playerID);
+                reg.withdrawPlayer(playerID.c_str());
+                break;
+            }
+            case 4: {
+                reg.processCheckInQueue();
+                break;
+            }
+            case 5: {
+                reg.displayReadyMatches();
+                break;
+            }
+            case 0:
+                cout << "Exiting...\n";
+                break;
+            default:
+                cout << "Invalid option. Try again.\n";
+        }
+    } while (choice != 0);
 
-    // Withdraw a player
-    cout << "\n--- Withdraw Player P003 ---\n";
-    reg.withdrawPlayer("P003");
-
-    // Display players after withdrawal
-    cout << "\n--- Players After Withdrawal ---\n";
-    reg.displayAllPlayers();
-
-    // Save updated player list
+    // Save on exit (optional)
     reg.savePlayers("data/players.csv");
 
     return 0;
@@ -103,9 +151,14 @@ void PlayerRegistration::savePlayers(const char* filename) {
     ofstream file(filename);
     for (int i = 0; i < totalPlayers; i++) {
         Player& p = players[i];
-        file << p.playerID << " " << p.name << " " << p.university << " "
-             << p.ranking << " " << p.status << " "
-             << p.matchesPlayed << " " << p.points << " " << p.grouping << "\n";
+        file << p.playerID << ","
+             << p.name << ","
+             << p.university << ","
+             << p.ranking << ","
+             << p.status << ","
+             << p.matchesPlayed << ","
+             << p.points << ","
+             << p.grouping << "\n";
     }
     file.close();
 }
@@ -118,13 +171,13 @@ void PlayerRegistration::displayAllPlayers() {
 
 void PlayerRegistration::checkInPlayer(const char* playerID) {
     for (int i = 0; i < totalPlayers; i++) {
-        if (strcmp(players[i].playerID, playerID) == 0) {
-            if (strcmp(players[i].status, "Active") == 0) {
+        if (equalsIgnoreCase(players[i].playerID, playerID)) {
+            if (equalsIgnoreCase(players[i].status, "active")) {
                 cout << "Player already active.\n";
                 return;
             }
 
-            strcpy(players[i].status, "Active");
+            strcpy(players[i].status, "active");
             QueueNode* newNode = new QueueNode{ &players[i], nullptr };
 
             // Priority insertion: Early-bird > Wildcard > Regular
@@ -185,8 +238,8 @@ void PlayerRegistration::processCheckInQueue() {
 
 void PlayerRegistration::withdrawPlayer(const char* playerID) {
     for (int i = 0; i < totalPlayers; i++) {
-        if (strcmp(players[i].playerID, playerID) == 0) {
-            strcpy(players[i].status, "Eliminated");
+        if (equalsIgnoreCase(players[i].playerID, playerID)) {
+            strcpy(players[i].status, "eliminated");
             cout << "Player " << playerID << " withdrawn.\n";
             return;
         }
@@ -205,6 +258,27 @@ void PlayerRegistration::displayCheckInQueue() {
     while (temp) {
         cout << temp->player->playerID << " - " << temp->player->name << endl;
         temp = temp->next;
+    }
+}
+
+void PlayerRegistration::displayReadyMatches() {
+    if (!front || !front->next) {
+        cout << "Not enough players to display matches.\n";
+        return;
+    }
+
+    QueueNode* temp = front;
+    int matchNum = 1;
+
+    cout << "\n--- Ready Matches ---\n";
+    while (temp && temp->next) {
+        cout << "Match " << matchNum++ << ": "
+             << temp->player->name << " vs " << temp->next->player->name << "\n";
+        temp = temp->next->next;
+    }
+
+    if (temp) {
+        cout << "Waiting for match: " << temp->player->name << " (no opponent yet)\n";
     }
 }
 

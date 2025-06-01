@@ -39,6 +39,8 @@ public:
     void processCheckInQueue();
     void withdrawPlayer(const char* playerID);
     void displayCheckInQueue();
+    void displayReadyMatches();
+    void setPlayerPriority(const char* playerID, char priorityType);
 
     bool validatePlayerCount();
 };
