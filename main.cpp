@@ -3,32 +3,36 @@
 
 #include <iostream>
 #include <string>
+#include <limits>
 
-// Include all component headers
-#include "MatchScheduler.hpp" // Task 1
-#include "PlayerRegistration.hpp"     // Task 2
-#include "SpectatorManager.hpp"       // Task 3
-// #include "ResultLogger.hpp"           // Task 4
+#include "MatchScheduler.hpp"      // Task 1
+#include "PlayerRegistration.hpp"  // Task 2
+#include "SpectatorManager.hpp"    // Task 3
+#include "ResultLogger.hpp"        // Task 4
 
 // Function prototypes for menu options
 void showMainMenu();
 void handleMatchScheduling(MatchScheduler &scheduler, PlayerRegistration &playerReg);
 void handlePlayerRegistration(PlayerRegistration &playerReg);
 void handleSpectatorManagement(SpectatorManager &specManager);
-void handleResultLogging(ResultLogger &logger, MatchScheduler &scheduler);
+
+// We no longer need a separate handleResultLogging(...) function; instead
+// we will call runResultLogger(...) directly inside case 4 of main().
 
 int main()
 {
     // Initialize the components
-    MatchScheduler matchScheduler;
+    MatchScheduler   matchScheduler;
     PlayerRegistration playerReg;
     SpectatorManager specManager;
-    ResultLogger resultLogger;
+
+    // (No dedicated resultLogger instance needed here; runResultLogger will
+    // create its own internally when slot 4 is chosen.)
 
     // Try to load existing data from files
     playerReg.loadPlayersFromFile("data/players.csv");
     matchScheduler.loadMatchesFromFile("data/matches.csv");
-    resultLogger.loadResultsFromFile("data/results.csv");
+    // For results, load via the new method when needed—so we do not call it here.
 
     std::cout << "============================================" << std::endl;
     std::cout << "ASIA PACIFIC UNIVERSITY ESPORTS CHAMPIONSHIP" << std::endl;
@@ -40,9 +44,13 @@ int main()
     {
         showMainMenu();
         std::cout << "\nEnter your choice (1-5): ";
-        std::cin >> choice;
-
-        // Clear the input buffer
+        if (!(std::cin >> choice)) {
+            // If user types EOF or non‐number, clear and continue
+            std::cin.clear();
+            std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+            std::cout << "Invalid input. Please enter a number between 1 and 5.\n";
+            continue;
+        }
         std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
 
         switch (choice)
@@ -50,23 +58,32 @@ int main()
         case 1:
             handleMatchScheduling(matchScheduler, playerReg);
             break;
+
         case 2:
             handlePlayerRegistration(playerReg);
             break;
+
         case 3:
             handleSpectatorManagement(specManager);
             break;
+
         case 4:
-            handleResultLogging(resultLogger, matchScheduler);
+            // ----- TASK 4: RESULT LOGGING & PERFORMANCE HISTORY -----
+            // We simply call runResultLogger here, passing in the path to the CSV
+            // and a buffer size (e.g. 10). Inside runResultLogger, the user can
+            // navigate the “Match Info” / “Player Info” submenus for results.
+            runResultLogger("data/results.csv", 10);
             break;
+
         case 5:
             std::cout << "Exiting system. Saving data..." << std::endl;
             // Save data before exiting
             playerReg.savePlayersToFile("data/players.csv");
             matchScheduler.saveMatchesToFile("data/matches.csv");
-            resultLogger.saveResultsToFile("data/results.csv");
+            // We do not have a saveResultsToFile() in the new ResultLogger—skip it.
             std::cout << "Data saved successfully. Goodbye!" << std::endl;
             break;
+
         default:
             std::cout << "Invalid choice. Please try again." << std::endl;
         }
@@ -86,13 +103,10 @@ void showMainMenu()
     std::cout << "5. Exit" << std::endl;
 }
 
-// Implementation of menu handlers would go here...
-// Each function would provide a submenu for the specific component
-// and handle user interactions with that component
+// Placeholder stubs for the other handlers—preserve your existing logic here.
 
 void handleMatchScheduling(MatchScheduler &scheduler, PlayerRegistration &playerReg)
 {
-    // Implementation for match scheduling submenu
     int choice = 0;
     do
     {
@@ -104,20 +118,24 @@ void handleMatchScheduling(MatchScheduler &scheduler, PlayerRegistration &player
         std::cout << "5. Return to main menu" << std::endl;
 
         std::cout << "\nEnter your choice (1-5): ";
-        std::cin >> choice;
+        if (!(std::cin >> choice)) {
+            std::cin.clear();
+            std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+            std::cout << "Invalid input. Please enter a number between 1 and 5.\n";
+            continue;
+        }
         std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
 
         switch (choice)
         {
         case 1:
         {
-            // Schedule a new match
             std::string matchID, player1ID, player2ID;
 
             std::cout << "Enter Match ID: ";
             std::getline(std::cin, matchID);
 
-            // In a real implementation, you would list available players
+            // In a real implementation, you would list available players:
             playerReg.displayRegisteredPlayers();
 
             std::cout << "Enter Player 1 ID: ";
@@ -130,22 +148,20 @@ void handleMatchScheduling(MatchScheduler &scheduler, PlayerRegistration &player
             break;
         }
         case 2:
-            // View upcoming matches
             scheduler.displayUpcomingMatches();
             break;
+
         case 3:
         {
-            // Generate tournament brackets
-            // In a real implementation, you would use actual player data
             std::cout << "Generating tournament brackets..." << std::endl;
-            Player *playerList = nullptr; // This would be properly implemented
+            Player* playerList = nullptr; // Replace with actual player array if available
             int playerCount = playerReg.getPlayerCount();
             scheduler.generateBrackets(playerList, playerCount);
             break;
         }
+
         case 4:
         {
-            // Update tournament progress
             std::string matchID, winnerID;
 
             scheduler.displayUpcomingMatches();
@@ -162,10 +178,69 @@ void handleMatchScheduling(MatchScheduler &scheduler, PlayerRegistration &player
         case 5:
             std::cout << "Returning to main menu..." << std::endl;
             break;
+
         default:
             std::cout << "Invalid choice. Please try again." << std::endl;
         }
     } while (choice != 5);
+}
+
+void handlePlayerRegistration(PlayerRegistration &playerReg)
+{
+    int choice = 0;
+    do
+    {
+        std::cout << "\n===== PLAYER REGISTRATION MENU =====" << std::endl;
+        std::cout << "1. Register new player" << std::endl;
+        std::cout << "2. View all registered players" << std::endl;
+        std::cout << "3. Remove a player" << std::endl;
+        std::cout << "4. Return to main menu" << std::endl;
+
+        std::cout << "\nEnter your choice (1-4): ";
+        if (!(std::cin >> choice)) {
+            std::cin.clear();
+            std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+            std::cout << "Invalid input. Please enter a number between 1 and 4.\n";
+            continue;
+        }
+        std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+
+        switch (choice)
+        {
+        case 1:
+        {
+            std::string name, id;
+            int age;
+            std::cout << "Enter Player Name: ";
+            std::getline(std::cin, name);
+            std::cout << "Enter Player ID: ";
+            std::getline(std::cin, id);
+            std::cout << "Enter Player Age: ";
+            std::cin >> age;
+            std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+            playerReg.registerPlayer(name, id, age);
+            break;
+        }
+        case 2:
+            playerReg.displayRegisteredPlayers();
+            break;
+
+        case 3:
+        {
+            std::string id;
+            std::cout << "Enter Player ID to remove: ";
+            std::getline(std::cin, id);
+            playerReg.removePlayer(id);
+            break;
+        }
+        case 4:
+            std::cout << "Returning to main menu..." << std::endl;
+            break;
+
+        default:
+            std::cout << "Invalid choice. Please try again." << std::endl;
+        }
+    } while (choice != 4);
 }
 
 void handleSpectatorManagement(SpectatorManager &specManager)
@@ -182,7 +257,12 @@ void handleSpectatorManagement(SpectatorManager &specManager)
         std::cout << "6. Return to main menu" << std::endl;
 
         std::cout << "\nEnter your choice (1-6): ";
-        std::cin >> choice;
+        if (!(std::cin >> choice)) {
+            std::cin.clear();
+            std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+            std::cout << "Invalid input. Please enter a number between 1 and 6.\n";
+            continue;
+        }
         std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
 
         switch (choice)
@@ -210,7 +290,12 @@ void handleSpectatorManagement(SpectatorManager &specManager)
             std::cout << "Enter streamer name: ";
             std::getline(std::cin, name);
             std::cout << "Enter slot number (0-4): ";
-            std::cin >> slot;
+            if (!(std::cin >> slot)) {
+                std::cin.clear();
+                std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+                std::cout << "Invalid slot number. Must be 0–4.\n";
+                break;
+            }
             std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
             specManager.assignStreamerSlot(slot, name);
             break;
@@ -231,5 +316,5 @@ void handleSpectatorManagement(SpectatorManager &specManager)
     } while (choice != 6);
 }
 
+// (No separate handleResultLogging function is needed, since main() calls runResultLogger directly.)
 
-// Additional handler functions would be implemented similarly
