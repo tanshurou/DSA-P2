@@ -10,6 +10,7 @@
         "-g",
         "main.cpp",
         "MatchScheduler.cpp",
+        "ResultLogger.cpp",
         "-o",
         "app.exe"
       ],
