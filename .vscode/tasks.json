@@ -1,16 +1,22 @@
+// .vscode/tasks.json
 {
   "version": "2.0.0",
   "tasks": [
     {
       "label": "Build C++ Project",
       "type": "shell",
-      "command": "C:/msys64/ucrt64/bin/g++.exe",
+      // Now we simply invoke "g++" (because it's on PATH).
+      "command": "g++",
       "args": [
         "-fdiagnostics-color=always",
         "-g",
+        "-std=c++17",
         "main.cpp",
         "MatchScheduler.cpp",
         "ResultLogger.cpp",
+        // If you have additional .cpp files, list them here, e.g.:
+        // "PlayerRegistration.cpp",
+        // "SpectatorManager.cpp",
         "-o",
         "app.exe"
       ],
@@ -22,7 +28,7 @@
         "kind": "build",
         "isDefault": true
       },
-      "detail": "Builds main.cpp and MatchScheduler.cpp with MSYS2 g++"
+      "detail": "Builds main.cpp, MatchScheduler.cpp, and ResultLogger.cpp using g++"
     }
   ]
 }

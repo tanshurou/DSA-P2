@@ -9,7 +9,6 @@
 using namespace std;
 
 // Forward‐declare the tournament manager entry point:
-void runTournamentManager();
 
 void showMainMenu();
 
@@ -57,7 +56,7 @@ int main()
 
             case 4:
                 // Launch the Result Logger submenu from ResultLogger.cpp / ResultLogger.hpp
-                runResultLogger("data/results.csv", 10);
+                runResultLogger("data/matches.csv", 10);
                 break;
 
             case 5:
