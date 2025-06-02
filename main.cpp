@@ -1,45 +1,43 @@
-// main.cpp
 #include <iostream>
 #include <string>
 #include <limits>
 
-#include "MatchScheduler.hpp"   // Task 1: runTournamentManager()
-#include "PlayerRegistration.hpp"   // Task 2: runPlayerRegistration()
-#include "ResultLogger.hpp"     // Task 4: runResultLogger()
+#include "MatchScheduler.hpp"
+#include "PlayerRegistration.hpp"
+#include "ResultLogger.hpp"
+#include "SpectatorManager.hpp"
 
 using namespace std;
 
-// Forward‐declare the tournament manager entry point:
-
 void showMainMenu();
+void runSpectatorManager();
 
 int main()
 {
-    cout << "============================================" << endl;
-    cout << "ASIA PACIFIC UNIVERSITY ESPORTS CHAMPIONSHIP" << endl;
-    cout << "          MANAGEMENT SYSTEM                " << endl;
-    cout << "============================================" << endl;
+    std::cout << "============================================" << std::endl;
+    std::cout << "ASIA PACIFIC UNIVERSITY ESPORTS CHAMPIONSHIP" << std::endl;
+    std::cout << "          MANAGEMENT SYSTEM                " << std::endl;
+    std::cout << "============================================" << std::endl;
 
     int choice = 0;
+    SpectatorManager manager;
+
     do
     {
         showMainMenu();
-        cout << "\nEnter your choice (1-5): ";
-        if (!(cin >> choice))
+        std::cout << "\nEnter your choice (1-5): ";
+        if (!(std::cin >> choice))
         {
-            // If the user types a non-number, clear and re-prompt
-            cin.clear();
-            cin.ignore(numeric_limits<streamsize>::max(), '\n');
-            cout << "Invalid input. Please enter a number between 1 and 5.\n";
+            std::cin.clear();
+            std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+            std::cout << "Invalid input. Please enter a number between 1 and 5.\n";
             continue;
         }
-        // Remove leftover newline from the buffer
-        cin.ignore(numeric_limits<streamsize>::max(), '\n');
+        std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
 
         switch (choice)
         {
             case 1:
-                // Launch your Tournament Manager (MatchScheduler, PlayerRegistration, etc.)
                 runTournamentManager();
                 break;
 
@@ -48,36 +46,37 @@ int main()
                 break;
 
             case 3:
-                // (If you eventually implement a “SpectatorManager” module, call it here)
-                // e.g. runSpectatorManager();
-                cout << "Spectator Management not yet implemented.\n";
+                runSpectatorManager();
                 break;
 
             case 4:
-                // Launch the Result Logger submenu from ResultLogger.cpp / ResultLogger.hpp
                 runResultLogger("data/matches.csv", 10);
                 break;
 
             case 5:
-                // Exit
-                cout << "Exiting system. Goodbye!\n";
+                std::cout << "Exiting system. Goodbye!\n";
                 break;
 
             default:
-                cout << "Invalid choice. Please try again." << endl;
+                std::cout << "Invalid choice. Please try again." << std::endl;
         }
-    }
-    while (choice != 5);
+    } while (choice != 5);
 
     return 0;
 }
 
 void showMainMenu()
 {
-    cout << "\n========== MAIN MENU ==========" << endl;
-    cout << "1. Match Scheduling & Player Progression" << endl;
-    cout << "2. Tournament Registration & Player Queueing" << endl;
-    cout << "3. Live Stream & Spectator Queue Management" << endl;
-    cout << "4. Game Result Logging & Performance History" << endl;
-    cout << "5. Exit" << endl;
+    std::cout << "\n========== MAIN MENU ==========" << std::endl;
+    std::cout << "1. Match Scheduling & Player Progression" << std::endl;
+    std::cout << "2. Tournament Registration & Player Queueing" << std::endl;
+    std::cout << "3. Live Stream & Spectator Queue Management" << std::endl;
+    std::cout << "4. Game Result Logging & Performance History" << std::endl;
+    std::cout << "5. Exit" << std::endl;
+}
+
+void runSpectatorManager()
+{
+    SpectatorManager manager;
+    manager.run();
 }
