@@ -56,7 +56,7 @@ void runPlayerRegistration() {
 
     // Optional: ensure valid data before proceeding
     if (!reg.validatePlayerCount()) {
-        return 1;
+        return;
     }
 
     do {
@@ -107,8 +107,6 @@ void runPlayerRegistration() {
 
     // Save on exit (optional)
     reg.savePlayers("data/players.csv");
-
-    return 0;
 }
 
 PlayerRegistration::PlayerRegistration()
