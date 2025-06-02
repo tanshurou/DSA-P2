@@ -4,6 +4,7 @@
 #include <limits>
 
 #include "MatchScheduler.hpp"   // Task 1: runTournamentManager()
+#include "PlayerRegistration.hpp"   // Task 2: runPlayerRegistration()
 #include "ResultLogger.hpp"     // Task 4: runResultLogger()
 
 using namespace std;
@@ -43,9 +44,7 @@ int main()
                 break;
 
             case 2:
-                // (If you eventually implement a “PlayerRegistration” module, call it here)
-                // e.g. runPlayerRegistration();
-                cout << "Player Registration not yet implemented.\n";
+                runPlayerRegistration();
                 break;
 
             case 3:

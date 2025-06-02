@@ -10,7 +10,7 @@ using namespace std;
 
 void displayMenu()
 {
-    cout << "\n========== Tournament Registration System ==========\n";
+    cout << "\n========== Tournament Registration System ===========\n";
     cout << "1. Display check-in queue\n";
     cout << "2. Player check-in (existing)\n";
     cout << "3. Withdraw player from tournament\n";
@@ -46,70 +46,70 @@ void PlayerRegistration::setPlayerPriority(const char *playerID, char priorityTy
     }
 }
 
-// int main() {
-//     PlayerRegistration reg;
-//     string playerID;
-//     int choice;
+void runPlayerRegistration() {
+    PlayerRegistration reg;
+    string playerID;
+    int choice;
 
-//     // Preload players from file (since option removed)
-//     reg.loadPlayers("data/players.csv");
+    // Preload players from file (since option removed)
+    reg.loadPlayers("data/players.csv");
 
-//     // Optional: ensure valid data before proceeding
-//     if (!reg.validatePlayerCount()) {
-//         return 1;
-//     }
+    // Optional: ensure valid data before proceeding
+    if (!reg.validatePlayerCount()) {
+        return 1;
+    }
 
-//     do {
-//         displayMenu();
-//         cin >> choice;
-//         cin.ignore();
+    do {
+        displayMenu();
+        cin >> choice;
+        cin.ignore();
 
-//         switch (choice) {
-//             case 1: {
-//                 reg.displayCheckInQueue();
-//                 break;
-//             }
-//             case 2: {
-//                 cout << "Enter Player ID to check in: ";
-//                 getline(cin, playerID);
+        switch (choice) {
+            case 1: {
+                reg.displayCheckInQueue();
+                break;
+            }
+            case 2: {
+                cout << "Enter Player ID to check in: ";
+                getline(cin, playerID);
 
-//                 char priority;
-//                 cout << "Is this player an Early-Bird (E), Wildcard (W), or Regular (R)? ";
-//                 cin >> priority;
-//                 cin.ignore();
+                char priority;
+                cout << "Is this player an Early-Bird (E), Wildcard (W), or Regular (R)? ";
+                cin >> priority;
+                cin.ignore();
 
-//                 reg.setPlayerPriority(playerID.c_str(), priority);
+                reg.setPlayerPriority(playerID.c_str(), priority);
 
-//                 reg.checkInPlayer(playerID.c_str());
-//                 break;
-//             }
-//             case 3: {
-//                 cout << "Enter Player ID to withdraw: ";
-//                 getline(cin, playerID);
-//                 reg.withdrawPlayer(playerID.c_str());
-//                 break;
-//             }
-//             case 4: {
-//                 reg.processCheckInQueue();
-//                 break;
-//             }
-//             case 5: {
-//                 reg.displayReadyMatches();
-//                 break;
-//             }
-//             case 0:
-//                 cout << "Exiting...\n";
-//                 break;
-//             default:
-//                 cout << "Invalid option. Try again.\n";
-//         }
-//     } while (choice != 0);
+                reg.checkInPlayer(playerID.c_str());
+                break;
+            }
+            case 3: {
+                cout << "Enter Player ID to withdraw: ";
+                getline(cin, playerID);
+                reg.withdrawPlayer(playerID.c_str());
+                break;
+            }
+            case 4: {
+                reg.processCheckInQueue();
+                break;
+            }
+            case 5: {
+                reg.displayReadyMatches();
+                break;
+            }
+            case 0:
+                cout << "Exiting...\n";
+                break;
+            default:
+                cout << "Invalid option. Try again.\n";
+        }
+    } while (choice != 0);
 
-//     // Save on exit (optional)
-//     reg.savePlayers("data/players.csv");
+    // Save on exit (optional)
+    reg.savePlayers("data/players.csv");
 
-//     return 0;
-// }
+    return 0;
+}
 
 PlayerRegistration::PlayerRegistration()
 {

@@ -48,4 +48,6 @@ public:
     bool validatePlayerCount();
 };
 
+void runPlayerRegistration();
+
 #endif
