@@ -318,10 +318,6 @@ void SpectatorManager::loadFromFile(const std::string& filename) {
 
     vipFront = vipRear = -1;
     genFront = genRear = -1;
-    for (int i = 0; i < MAX_STREAMERS; i++) {
-        streamerSlots[i] = "EMPTY";
-        streamerMatchIDs[i] = "";
-    }
 
     std::string line;
     while (std::getline(file, line)) {
@@ -352,9 +348,7 @@ void SpectatorManager::loadFromFile(const std::string& filename) {
 }
 
 void SpectatorManager::runSpectatorManager() {
-    // Load spectators from the file before displaying anything
     loadFromFile("data/spectators.csv");
-
     std::map<std::string, std::pair<std::string, std::string>> matchTimes;
     std::ifstream file("data/matches.csv");
     if (file.is_open()) {
