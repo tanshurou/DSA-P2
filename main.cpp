@@ -10,7 +10,6 @@
 using namespace std;
 
 void showMainMenu();
-void runSpectatorManager();
 
 int main()
 {
@@ -46,7 +45,7 @@ int main()
                 break;
 
             case 3:
-                runSpectatorManager();
+                manager.runSpectatorManager();
                 break;
 
             case 4:
@@ -73,10 +72,4 @@ void showMainMenu()
     std::cout << "3. Live Stream & Spectator Queue Management" << std::endl;
     std::cout << "4. Game Result Logging & Performance History" << std::endl;
     std::cout << "5. Exit" << std::endl;
-}
-
-void runSpectatorManager()
-{
-    SpectatorManager manager;
-    manager.run();
 }

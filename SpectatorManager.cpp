@@ -312,7 +312,7 @@ void SpectatorManager::saveToFile(const std::string& filename) {
 void SpectatorManager::loadFromFile(const std::string& filename) {
     std::ifstream file(filename);
     if (!file.is_open()) {
-        std::cout << "[WARNING] No spectator file found. Starting fresh.\n";
+        std::cout << "[WARNING] No spectator file found or failed to open. Starting fresh.\n";
         return;
     }
 
@@ -351,8 +351,10 @@ void SpectatorManager::loadFromFile(const std::string& filename) {
     std::cout << "[INFO] Spectator data loaded from '" << filename << "'\n";
 }
 
-void SpectatorManager::run() {
+void SpectatorManager::runSpectatorManager() {
+    // Load spectators from the file before displaying anything
     loadFromFile("data/spectators.csv");
+
     std::map<std::string, std::pair<std::string, std::string>> matchTimes;
     std::ifstream file("data/matches.csv");
     if (file.is_open()) {
@@ -397,7 +399,7 @@ void SpectatorManager::run() {
         std::cout << "--------------------------------------------\n";
 
         switch (mainChoice) {
-            case 1: { // VIP Management
+            case 1: {
                 int vipChoice;
                 do {
                     std::cout << "\n[VIP MANAGEMENT]\n";
@@ -435,7 +437,7 @@ void SpectatorManager::run() {
                 } while (vipChoice != 4);
                 break;
             }
-            case 2: { // General Spectator Management
+            case 2: {
                 int genChoice;
                 do {
                     std::cout << "\n[GENERAL SPECTATOR MANAGEMENT]\n";
@@ -473,7 +475,7 @@ void SpectatorManager::run() {
                 } while (genChoice != 4);
                 break;
             }
-            case 3: { // Streamer Slot Management
+            case 3: {
                 int streamChoice;
                 do {
                     std::cout << "\n[STREAMER SLOT MANAGEMENT]\n";
@@ -524,8 +526,7 @@ void SpectatorManager::run() {
                 } while (streamChoice != 4);
                 break;
             }
-
-            case 4: { // Display Info
+            case 4: {
                 int displayChoice;
                 std::cout << "\n[DISPLAY INFORMATION]\n";
                 std::cout << "1. View next 3 spectators in each queue\n";
@@ -545,11 +546,9 @@ void SpectatorManager::run() {
                 }
                 break;
             }
-
             case 5:
                 std::cout << "Exiting Spectator Manager...\n";
                 break;
-
             default:
                 std::cout << "[WARNING] Invalid main menu option.\n";
         }

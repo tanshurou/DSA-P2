@@ -21,8 +21,6 @@ private:
 
 public:
     SpectatorManager();
-
-    // Queue operations
     bool addVIP(const std::string& name);
     bool addGeneralSpectator(const std::string& name);
     bool removeSpectatorFromVIP();
@@ -31,22 +29,14 @@ public:
     void displayVIPQueue();
     void displayGeneralQueue();
     void displayQueues();
-
-    // Search spectator by name
     bool searchSpectator(const std::string& name);
-
-    // Streamer operations
     bool assignStreamerSlot(int slot, const std::string& name, const std::string& matchID, const std::map<std::string, std::pair<std::string, std::string>>& matchTimes);
     bool removeStreamerSlot(int slot);
     void displayStreamerSlots();
     void displayStreamerSchedule();
-
-    // File operations
     void saveToFile(const std::string& filename);
     void loadFromFile(const std::string& filename);
-
-    // Main interface
-    void run();
+    void runSpectatorManager();
 };
 
 #endif
